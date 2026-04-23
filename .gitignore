@@ -1,0 +1,11 @@
+.agents/
+.claude/
+.github/
+_bmad/
+tmp/
+
+# local/runtime noise
+.idea/
+.vscode/
+*.log
+*.tmp
