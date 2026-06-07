@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>런닝구(區) — 데모</title>
+<!-- 지도: 데모는 Leaflet/OpenStreetMap(키 불필요). 실서비스에서는 카카오맵 SDK로 교체 -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root{
+    --brand:#0f7b6c; --brand2:#13a594; --ink:#1a2024; --muted:#6b7780;
+    --line:#e7ebee; --bg:#f5f7f8; --card:#fff; --accent:#ff7a45;
+    --d1:#3b82f6; --dday:#0f7b6c; --dplus:#8b5cf6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Malgun Gothic",sans-serif;
+    color:var(--ink);background:var(--bg);overflow:hidden}
+  /* 헤더 */
+  header{height:58px;display:flex;align-items:center;gap:12px;padding:0 18px;
+    background:#fff;border-bottom:1px solid var(--line);position:relative;z-index:1000}
+  .logo{font-size:20px;font-weight:800;color:var(--brand);letter-spacing:-.5px}
+  .logo span{color:var(--accent)}
+  .tagline{font-size:12.5px;color:var(--muted)}
+  .demo-badge{margin-left:auto;font-size:11px;background:#fff3ec;color:var(--accent);
+    border:1px solid #ffd9c7;padding:4px 9px;border-radius:20px;font-weight:600}
+  /* 레이아웃 */
+  .layout{display:flex;height:calc(100% - 58px)}
+  .sidebar{width:420px;min-width:420px;height:100%;overflow-y:auto;background:#fff;
+    border-right:1px solid var(--line)}
+  #map{flex:1;height:100%}
+  /* 공통 */
+  .pad{padding:16px 18px}
+  .sec-title{font-size:13px;font-weight:700;color:var(--muted);margin:0 0 10px;
+    text-transform:uppercase;letter-spacing:.4px}
+  .chip{display:inline-flex;align-items:center;font-size:11.5px;padding:3px 9px;border-radius:20px;
+    border:1px solid var(--line);background:#fff;color:var(--muted);cursor:pointer;user-select:none}
+  .chip.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .filter-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+  .filter-label{font-size:11px;color:var(--muted);width:100%;margin:2px 0 1px}
+  /* 대회 카드 */
+  .m-card{border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px;
+    cursor:pointer;transition:.15s;background:#fff}
+  .m-card:hover{border-color:var(--brand2);box-shadow:0 4px 14px rgba(15,123,108,.08);transform:translateY(-1px)}
+  .m-card .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .m-name{font-size:15.5px;font-weight:700;margin:0}
+  .m-date{font-size:12.5px;color:var(--brand);font-weight:600;white-space:nowrap}
+  .m-region{font-size:12.5px;color:var(--muted);margin:4px 0 8px}
+  .events{display:flex;gap:5px;flex-wrap:wrap}
+  .ev{font-size:11px;background:#eef6f4;color:var(--brand);padding:2px 8px;border-radius:6px;font-weight:600}
+  .status{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px}
+  .status.open{background:#e7f6ec;color:#1a8a3f}
+  .status.soon{background:#fff4e5;color:#c2790b}
+  .status.closed{background:#f1f1f1;color:#999}
+  .src{font-size:10.5px;color:#aab2b8;margin-top:9px;display:flex;gap:5px;align-items:center}
+  /* 상세 패널 */
+  .detail-head{padding:16px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff;z-index:5}
+  .back{font-size:12.5px;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:4px;margin-bottom:8px}
+  .back:hover{color:var(--brand)}
+  .tabs{display:flex;border-bottom:1px solid var(--line);background:#fff;position:sticky;top:0;z-index:4}
+  .tab{flex:1;text-align:center;padding:12px 4px;font-size:12.5px;font-weight:600;color:var(--muted);
+    cursor:pointer;border-bottom:2px solid transparent}
+  .tab.on{color:var(--brand);border-bottom-color:var(--brand)}
+  /* M1 입력 */
+  .ctrl-block{margin-bottom:13px}
+  .ctrl-label{font-size:12px;font-weight:700;margin-bottom:6px}
+  .btn{width:100%;padding:12px;border:none;border-radius:11px;background:var(--brand);color:#fff;
+    font-size:14px;font-weight:700;cursor:pointer;margin-top:4px}
+  .btn:hover{background:var(--brand2)}
+  /* 타임라인 */
+  .day-block{margin-bottom:18px}
+  .day-tag{display:inline-block;font-size:11.5px;font-weight:700;color:#fff;padding:3px 11px;
+    border-radius:20px;margin-bottom:4px}
+  .day-d1{background:var(--d1)} .day-dday{background:var(--dday)} .day-dplus{background:var(--dplus)}
+  .day-note{font-size:11.5px;color:var(--muted);margin:2px 0 10px}
+  .tl{position:relative;padding-left:20px}
+  .tl::before{content:"";position:absolute;left:5px;top:4px;bottom:4px;width:2px;background:var(--line)}
+  .tl-item{position:relative;margin-bottom:12px;cursor:pointer}
+  .tl-item::before{content:"";position:absolute;left:-18px;top:3px;width:10px;height:10px;border-radius:50%;
+    background:#fff;border:2px solid var(--brand)}
+  .tl-item:hover .tl-title{color:var(--brand)}
+  .tl-time{font-size:11.5px;color:var(--brand);font-weight:700}
+  .tl-title{font-size:13.5px;font-weight:600;margin:1px 0}
+  .tl-detail{font-size:12px;color:var(--muted);line-height:1.45}
+  .tl-cat{font-size:10px;padding:1px 6px;border-radius:5px;margin-left:5px;vertical-align:middle}
+  .cat-food{background:#fff0e8;color:#d9622b}
+  .cat-tour{background:#e8f0ff;color:#2b62d9}
+  .cat-wellness{background:#f0e8ff;color:#7c3aed}
+  .cat-course{background:#e8fff4;color:#0f9d63}
+  .cat-festival{background:#ffe8f3;color:#d92b7a}
+  .cat-race{background:#ffe9e9;color:#d92b2b}
+  /* M3/M4 리스트 */
+  .poi-card{border:1px solid var(--line);border-radius:11px;padding:12px;margin-bottom:9px;cursor:pointer}
+  .poi-card:hover{border-color:var(--brand2);background:#fafdfc}
+  .poi-name{font-size:14px;font-weight:700;margin:0}
+  .poi-desc{font-size:12px;color:var(--muted);margin:4px 0 0}
+  .poi-meta{font-size:11px;color:var(--brand);font-weight:600;margin-top:6px}
+  .hint{font-size:12px;color:var(--muted);background:#f5f7f8;border-radius:10px;padding:11px 13px;line-height:1.5}
+  .leaflet-popup-content{font-family:inherit;font-size:13px}
+  .pop-cat{font-size:10px;font-weight:700;color:var(--brand)}
+  /* 스크롤바 */
+  .sidebar::-webkit-scrollbar{width:8px}
+  .sidebar::-webkit-scrollbar-thumb{background:#d8dee2;border-radius:8px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">런닝<span>區</span></div>
+  <div class="tagline">내가 뛸 동네를 가장 잘 아는 친구</div>
+  <div class="demo-badge">DEMO · 더미 데이터</div>
+</header>
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div id="map"></div>
+</div>
+
+<script>
+/* ============================================================
+   런닝구 데모 — 더미 데이터
+   ※ 실서비스: 마라톤 일정=마라톤온라인/마라톤GO 크롤링,
+     관광/산책/웰니스=한국관광공사 OpenAPI(국문관광·두루누비·웰니스),
+     지도/이동시간=카카오맵·모빌리티·로컬 API 로 교체
+   ============================================================ */
+const MARATHONS = [
+  {
+    id:'seoul', name:'서울 가을 마라톤', region:'서울 송파', regionCode:'서울',
+    date:'2026-10-18', month:10, lat:37.5159, lng:127.0731, status:'open',
+    events:['5K','10K','하프','풀'], bib:'BEXCO 미정 · 잠실종합운동장 픽업', startTime:'08:00',
+    src:'마라톤온라인', checked:'2026-06-02',
+    pois:[
+      {cat:'tour', name:'롯데월드타워 서울스카이', lat:37.5126, lng:127.1025, desc:'전망대·도심 관광', themes:['관광지']},
+      {cat:'tour', name:'석촌호수 둘레길 명소', lat:37.5097, lng:127.1006, desc:'호수 산책·벚꽃길', themes:['자연','관광지']},
+      {cat:'food', name:'잠실 새마을식당(고탄수)', lat:37.5135, lng:127.0820, desc:'대회 전 탄수보충식', themes:['맛집']},
+      {cat:'food', name:'송리단길 로컬 식당가', lat:37.5050, lng:127.1060, desc:'러너 추천 골목상권', themes:['맛집']},
+      {cat:'wellness', name:'시그니엘 사우나·스파', lat:37.5125, lng:127.1024, desc:'완주 후 회복', themes:['웰니스']},
+      {cat:'festival', name:'한강 잠실 달빛야시장', lat:37.5180, lng:127.0850, desc:'대회 주말 동시개최', themes:[]},
+      {cat:'course', name:'석촌호수 둘레길', lat:37.5097, lng:127.1006, desc:'평지 호수 코스', dist:2.5, level:'쉬움', themes:['자연']},
+      {cat:'course', name:'올림픽공원 순환', lat:37.5202, lng:127.1216, desc:'공원 트랙', dist:5, level:'보통', themes:['자연']},
+    ]
+  },
+  {
+    id:'incheon', name:'인천 송도 마라톤', region:'인천 연수', regionCode:'인천',
+    date:'2026-09-27', month:9, lat:37.3894, lng:126.6398, status:'open',
+    events:['5K','10K','하프'], bib:'송도컨벤시아 픽업', startTime:'08:30',
+    src:'마라톤GO', checked:'2026-06-04',
+    pois:[
+      {cat:'tour', name:'송도 센트럴파크', lat:37.3925, lng:126.6390, desc:'수변 도심공원', themes:['자연','관광지']},
+      {cat:'tour', name:'인천대교 전망대', lat:37.3760, lng:126.6230, desc:'바다 조망', themes:['관광지']},
+      {cat:'food', name:'송도 바지락칼국수', lat:37.3880, lng:126.6500, desc:'탄수·나트륨 보충식', themes:['맛집']},
+      {cat:'food', name:'차이나타운 짜장 골목', lat:37.4750, lng:126.6175, desc:'인천 대표 먹거리', themes:['맛집','역사유적']},
+      {cat:'wellness', name:'송도 스파·찜질방', lat:37.3905, lng:126.6440, desc:'완주 후 온욕', themes:['웰니스']},
+      {cat:'festival', name:'송도 맥주축제', lat:37.3930, lng:126.6360, desc:'대회 주말 개최', themes:[]},
+      {cat:'course', name:'센트럴파크 수변길', lat:37.3925, lng:126.6390, desc:'평지 수변', dist:3, level:'쉬움', themes:['자연']},
+      {cat:'course', name:'송도 해돋이공원', lat:37.3850, lng:126.6600, desc:'해안 산책', dist:5, level:'보통', themes:['자연']},
+    ]
+  },
+  {
+    id:'suwon', name:'수원 화성 마라톤', region:'경기 수원', regionCode:'경기',
+    date:'2026-10-11', month:10, lat:37.2810, lng:127.0153, status:'soon',
+    events:['5K','10K','하프'], bib:'수원화성행궁 광장 픽업', startTime:'08:00',
+    src:'마라톤온라인', checked:'2026-06-01',
+    pois:[
+      {cat:'tour', name:'수원화성(세계문화유산)', lat:37.2880, lng:127.0140, desc:'성곽 역사유적', themes:['역사유적','관광지']},
+      {cat:'tour', name:'행궁동 벽화마을', lat:37.2820, lng:127.0120, desc:'골목 감성 관광', themes:['관광지']},
+      {cat:'food', name:'수원 왕갈비탕', lat:37.2790, lng:127.0190, desc:'단백질 회복식', themes:['맛집']},
+      {cat:'food', name:'통닭거리', lat:37.2840, lng:127.0175, desc:'수원 명물 거리', themes:['맛집']},
+      {cat:'wellness', name:'수원 온천 스파', lat:37.2750, lng:127.0250, desc:'완주 후 온천', themes:['웰니스']},
+      {cat:'festival', name:'수원화성문화제', lat:37.2880, lng:127.0140, desc:'가을 대표 축제', themes:['역사유적']},
+      {cat:'course', name:'화성 성곽길', lat:37.2880, lng:127.0140, desc:'성곽 따라 걷기', dist:5.7, level:'보통', themes:['역사유적']},
+      {cat:'course', name:'수원천 산책로', lat:37.2790, lng:127.0210, desc:'하천 평지', dist:3, level:'쉬움', themes:['자연']},
+    ]
+  },
+  {
+    id:'goyang', name:'고양 호수 마라톤', region:'경기 고양', regionCode:'경기',
+    date:'2026-09-20', month:9, lat:37.6584, lng:126.7715, status:'open',
+    events:['5K','10K'], bib:'일산호수공원 주제광장 픽업', startTime:'09:00',
+    src:'마라톤GO', checked:'2026-06-03',
+    pois:[
+      {cat:'tour', name:'일산호수공원', lat:37.6584, lng:126.7715, desc:'국내 최대 인공호수', themes:['자연','관광지']},
+      {cat:'tour', name:'원마운트 복합단지', lat:37.6660, lng:126.7460, desc:'쇼핑·워터파크', themes:['관광지']},
+      {cat:'food', name:'정발산 칼국수', lat:37.6620, lng:126.7740, desc:'탄수 보충식', themes:['맛집']},
+      {cat:'food', name:'라페스타 먹자골목', lat:37.6585, lng:126.7700, desc:'다양한 맛집', themes:['맛집']},
+      {cat:'wellness', name:'원마운트 스파', lat:37.6660, lng:126.7460, desc:'회복 온욕', themes:['웰니스']},
+      {cat:'festival', name:'고양 가을 호수축제', lat:37.6584, lng:126.7715, desc:'주말 개최', themes:[]},
+      {cat:'course', name:'호수공원 둘레길', lat:37.6584, lng:126.7715, desc:'평지 순환', dist:4.7, level:'쉬움', themes:['자연']},
+      {cat:'course', name:'정발산 자락길', lat:37.6650, lng:126.7780, desc:'완만한 숲길', dist:3, level:'보통', themes:['자연']},
+    ]
+  },
+  {
+    id:'busan', name:'부산 바다 마라톤', region:'부산 해운대', regionCode:'부산',
+    date:'2026-11-08', month:11, lat:35.1587, lng:129.1604, status:'soon',
+    events:['10K','하프','풀'], bib:'BEXCO 2홀 픽업(마감 17:00)', startTime:'08:00',
+    src:'주최측 검증', checked:'2026-06-05',
+    pois:[
+      {cat:'tour', name:'해운대 해수욕장', lat:35.1587, lng:129.1604, desc:'대표 해변 관광', themes:['자연','관광지']},
+      {cat:'tour', name:'동백섬 누리마루', lat:35.1530, lng:129.1510, desc:'해안 산책·전망', themes:['자연','관광지']},
+      {cat:'food', name:'해운대 돼지국밥', lat:35.1630, lng:129.1620, desc:'부산 카보로딩 명물', themes:['맛집']},
+      {cat:'food', name:'밀면 골목', lat:35.1600, lng:129.1590, desc:'러너 추천 로컬식', themes:['맛집']},
+      {cat:'wellness', name:'스파랜드 센텀', lat:35.1690, lng:129.1300, desc:'냉온교차욕 회복', themes:['웰니스']},
+      {cat:'festival', name:'부산불꽃축제', lat:35.1530, lng:129.1180, desc:'가을 대표 축제', themes:[]},
+      {cat:'course', name:'동백섬 둘레길', lat:35.1530, lng:129.1510, desc:'평지 해안', dist:3, level:'쉬움', themes:['자연']},
+      {cat:'course', name:'달맞이길', lat:35.1560, lng:129.1810, desc:'언덕 해안 코스', dist:8, level:'보통', themes:['자연']},
+      {cat:'course', name:'이기대 해안산책로', lat:35.1330, lng:129.1230, desc:'기암 해안 트레일', dist:10, level:'어려움', themes:['자연']},
+    ]
+  },
+  {
+    id:'daegu', name:'대구 컬러풀 마라톤', region:'대구 수성', regionCode:'대구',
+    date:'2026-10-04', month:10, lat:35.8268, lng:128.6189, status:'closed',
+    events:['5K','10K','하프'], bib:'수성못 일원 픽업', startTime:'08:30',
+    src:'마라톤온라인', checked:'2026-05-28',
+    pois:[
+      {cat:'tour', name:'수성못', lat:35.8268, lng:128.6189, desc:'야경 명소 호수', themes:['자연','관광지']},
+      {cat:'tour', name:'김광석 다시그리기길', lat:35.8650, lng:128.5990, desc:'골목 문화 관광', themes:['관광지','역사유적']},
+      {cat:'food', name:'대구 막창골목', lat:35.8590, lng:128.5950, desc:'단백질 회복식', themes:['맛집']},
+      {cat:'food', name:'따로국밥 노포', lat:35.8700, lng:128.5940, desc:'대구 향토음식', themes:['맛집']},
+      {cat:'wellness', name:'수성 스파밸리', lat:35.8200, lng:128.6500, desc:'온천 회복', themes:['웰니스']},
+      {cat:'festival', name:'수성못 페스티벌', lat:35.8268, lng:128.6189, desc:'주말 개최', themes:[]},
+      {cat:'course', name:'수성못 둘레길', lat:35.8268, lng:128.6189, desc:'평지 호수', dist:2, level:'쉬움', themes:['자연']},
+      {cat:'course', name:'신천 둔치길', lat:35.8550, lng:128.6010, desc:'하천 평지', dist:6, level:'보통', themes:['자연']},
+    ]
+  },
+  {
+    id:'daejeon', name:'대전 한밭 마라톤', region:'대전 서구', regionCode:'대전',
+    date:'2026-09-13', month:9, lat:36.3690, lng:127.3884, status:'open',
+    events:['10K','하프','풀'], bib:'한밭수목원 광장 픽업', startTime:'08:00',
+    src:'마라톤GO', checked:'2026-06-04',
+    pois:[
+      {cat:'tour', name:'한밭수목원', lat:36.3690, lng:127.3884, desc:'도심 속 수목원', themes:['자연','관광지']},
+      {cat:'tour', name:'엑스포과학공원', lat:36.3740, lng:127.3880, desc:'과학 관광지', themes:['관광지']},
+      {cat:'food', name:'대전 칼국수', lat:36.3500, lng:127.3850, desc:'탄수 보충식', themes:['맛집']},
+      {cat:'food', name:'성심당 본점', lat:36.3280, lng:127.4270, desc:'대전 명물 베이커리', themes:['맛집']},
+      {cat:'wellness', name:'유성온천 스파', lat:36.3540, lng:127.3410, desc:'완주 후 온천', themes:['웰니스']},
+      {cat:'festival', name:'대전 사이언스 페스티벌', lat:36.3740, lng:127.3880, desc:'가을 개최', themes:[]},
+      {cat:'course', name:'갑천 누리길', lat:36.3600, lng:127.3780, desc:'하천 평지', dist:5, level:'쉬움', themes:['자연']},
+      {cat:'course', name:'한밭수목원 둘레', lat:36.3690, lng:127.3884, desc:'수목원 산책', dist:3, level:'쉬움', themes:['자연']},
+    ]
+  },
+  {
+    id:'gwangju', name:'광주 빛고을 마라톤', region:'광주 북구', regionCode:'광주',
+    date:'2026-10-25', month:10, lat:35.1798, lng:126.9100, status:'soon',
+    events:['5K','10K','하프'], bib:'광주월드컵경기장 픽업', startTime:'08:30',
+    src:'마라톤온라인', checked:'2026-06-02',
+    pois:[
+      {cat:'tour', name:'국립아시아문화전당', lat:35.1468, lng:126.9200, desc:'복합 문화공간', themes:['관광지','역사유적']},
+      {cat:'tour', name:'양림동 근대역사마을', lat:35.1380, lng:126.9130, desc:'근대 골목 관광', themes:['역사유적','관광지']},
+      {cat:'food', name:'광주 육전', lat:35.1500, lng:126.9180, desc:'단백질 회복식', themes:['맛집']},
+      {cat:'food', name:'상추튀김 골목', lat:35.1490, lng:126.9160, desc:'광주 별미', themes:['맛집']},
+      {cat:'wellness', name:'광주 스파·찜질방', lat:35.1700, lng:126.9050, desc:'완주 후 온욕', themes:['웰니스']},
+      {cat:'festival', name:'추억의 충장축제', lat:35.1490, lng:126.9150, desc:'가을 대표 축제', themes:['역사유적']},
+      {cat:'course', name:'광주천 산책로', lat:35.1550, lng:126.9100, desc:'하천 평지', dist:5, level:'쉬움', themes:['자연']},
+      {cat:'course', name:'무등산 자락길', lat:35.1340, lng:126.9880, desc:'완만한 숲길', dist:8, level:'보통', themes:['자연']},
+    ]
+  },
+];
+
+/* 종목별 회복 룰 (제안서 도메인 룰 반영) */
+const RECOVERY = {
+  '5K' : {walk:'8km 이내', intensity:'거의 정상', noHard:false,
+          ddayPM:'완주 후 오후부터 자유 관광 가능', dplus:'일반 관광 동선 (자유)'},
+  '10K': {walk:'8km 이내', intensity:'낮은 피로', noHard:false,
+          ddayPM:'완주 후 오후 가벼운 관광·축제', dplus:'일반 관광 동선'},
+  '하프': {walk:'5km 이내', intensity:'중등도 피로', noHard:true,
+          ddayPM:'완주 후 온천·휴식 권장', dplus:'온천 + 짧은 산책 (고강도 트레킹 제외)'},
+  '풀' : {walk:'3km 이내', intensity:'고강도 회복 필요', noHard:true,
+          ddayPM:'완주 후 회복 집중, 도보 최소화', dplus:'스파·온천 중심, 도보 최소'},
+};
+const CAT_LABEL = {food:'맛집',tour:'관광지',wellness:'웰니스',course:'산책',festival:'축제',race:'대회'};
+
+/* ---------- 상태 ---------- */
+let state = {
+  filter:{region:'전체', month:'전체', event:'전체', openOnly:false},
+  selected:null,
+  tab:'m1',
+  input:{event:null, stay:'1박2일', theme:'관광지'},
+  itinerary:null,
+};
+let map, markerLayer, routeLayer;
+
+/* ---------- 지도 ---------- */
+function initMap(){
+  map = L.map('map',{zoomControl:true}).setView([36.5,127.8],7);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    maxZoom:19, attribution:'© OpenStreetMap · 데모용(실서비스 카카오맵 교체)'
+  }).addTo(map);
+  markerLayer = L.layerGroup().addTo(map);
+  routeLayer = L.layerGroup().addTo(map);
+}
+function clearMap(){ markerLayer.clearLayers(); routeLayer.clearLayers(); }
+function catColor(c){return {food:'#d9622b',tour:'#2b62d9',wellness:'#7c3aed',course:'#0f9d63',festival:'#d92b7a',race:'#d92b2b'}[c]||'#0f7b6c';}
+function pin(lat,lng,label,cat,n){
+  const color=catColor(cat);
+  const html=`<div style="background:${color};color:#fff;border-radius:50% 50% 50% 0;width:26px;height:26px;
+    transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;
+    box-shadow:0 2px 6px rgba(0,0,0,.3);border:2px solid #fff">
+    <span style="transform:rotate(45deg);font-size:12px;font-weight:700">${n||''}</span></div>`;
+  const icon=L.divIcon({html,className:'',iconSize:[26,26],iconAnchor:[13,26]});
+  return L.marker([lat,lng],{icon}).bindPopup(
+    `<div class="pop-cat">${CAT_LABEL[cat]||''}</div><b>${label}</b>`);
+}
+
+/* ---------- M2: 캘린더/리스트 ---------- */
+function render(){
+  if(!state.selected) renderList(); else renderDetail();
+}
+function renderList(){
+  const f=state.filter;
+  const regions=['전체',...new Set(MARATHONS.map(m=>m.regionCode))];
+  const months=['전체',9,10,11];
+  const events=['전체','5K','10K','하프','풀'];
+  let list=MARATHONS.filter(m=>
+    (f.region==='전체'||m.regionCode===f.region)&&
+    (f.month==='전체'||m.month===f.month)&&
+    (f.event==='전체'||m.events.includes(f.event))&&
+    (!f.openOnly||m.status!=='closed'));
+
+  const chips=(arr,key,cur)=>arr.map(v=>
+    `<span class="chip ${String(cur)===String(v)?'on':''}" onclick="setFilter('${key}','${v}')">${v}${key==='month'&&v!=='전체'?'월':''}</span>`).join('');
+
+  let html=`<div class="pad">
+    <p class="sec-title">M2 · 전국 마라톤 통합 캘린더</p>
+    <div class="filter-label">지역</div><div class="filter-row">${chips(regions,'region',f.region)}</div>
+    <div class="filter-label">월</div><div class="filter-row">${chips(months,'month',f.month)}</div>
+    <div class="filter-label">종목</div><div class="filter-row">${chips(events,'event',f.event)}</div>
+    <div class="filter-row"><span class="chip ${f.openOnly?'on':''}" onclick="toggleOpen()">접수 가능만</span></div>
+    <p class="sec-title" style="margin-top:6px">${list.length}개 대회</p>`;
+
+  if(!list.length) html+=`<div class="hint">조건에 맞는 대회가 없어요. 필터를 바꿔보세요.</div>`;
+  list.forEach(m=>{
+    const st={open:['open','접수중'],soon:['soon','접수예정'],closed:['closed','마감']}[m.status];
+    html+=`<div class="m-card" onclick="selectMarathon('${m.id}')">
+      <div class="top"><h3 class="m-name">${m.name}</h3><span class="m-date">${m.date.slice(5).replace('-','/')}</span></div>
+      <div class="m-region">📍 ${m.region}</div>
+      <div class="top"><div class="events">${m.events.map(e=>`<span class="ev">${e}</span>`).join('')}</div>
+        <span class="status ${st[0]}">${st[1]}</span></div>
+      <div class="src">🔗 출처: ${m.src} · 최근확인 ${m.checked}</div>
+    </div>`;
+  });
+  html+=`</div>`;
+  document.getElementById('sidebar').innerHTML=html;
+
+  // 지도: 전체 대회 마커
+  clearMap();
+  list.forEach(m=>pin(m.lat,m.lng,m.name,'race').addTo(markerLayer)
+    .on('click',()=>selectMarathon(m.id)));
+  if(list.length) map.setView([36.5,127.8],7);
+}
+function setFilter(k,v){ state.filter[k]=(k==='month'&&v!=='전체')?Number(v):v; render(); }
+function toggleOpen(){ state.filter.openOnly=!state.filter.openOnly; render(); }
+
+/* ---------- 대회 선택 ---------- */
+function selectMarathon(id){
+  state.selected=MARATHONS.find(m=>m.id===id);
+  state.tab='m1';
+  state.input={event:state.selected.events[0], stay:'1박2일', theme:'관광지'};
+  state.itinerary=null;
+  render();
+  map.setView([state.selected.lat,state.selected.lng],13);
+}
+function back(){ state.selected=null; render(); }
+
+/* ---------- 상세 패널 ---------- */
+function renderDetail(){
+  const m=state.selected;
+  let html=`<div class="detail-head">
+    <div class="back" onclick="back()">← 캘린더로</div>
+    <h3 class="m-name">${m.name}</h3>
+    <div class="m-region">📍 ${m.region} · ${m.date} · 출발 ${m.startTime}</div>
+    <div class="src" style="margin-top:6px">🎽 비브픽업: ${m.bib}</div>
+  </div>
+  <div class="tabs">
+    <div class="tab ${state.tab==='m1'?'on':''}" onclick="setTab('m1')">동선 추천</div>
+    <div class="tab ${state.tab==='m3'?'on':''}" onclick="setTab('m3')">인근 축제</div>
+    <div class="tab ${state.tab==='m4'?'on':''}" onclick="setTab('m4')">산책 코스</div>
+  </div><div class="pad" id="tabbody"></div>`;
+  document.getElementById('sidebar').innerHTML=html;
+  if(state.tab==='m1') renderM1();
+  if(state.tab==='m3') renderM3();
+  if(state.tab==='m4') renderM4();
+}
+function setTab(t){ state.tab=t; renderDetail(); }
+
+/* ---------- M1: 종목·체류·테마 → 동선 추천 ---------- */
+function renderM1(){
+  const m=state.selected, inp=state.input;
+  const stays=['당일치기','1박2일','2박3일'];
+  const themes=['관광지','맛집','웰니스','자연','역사유적'];
+  const chips=(arr,key)=>arr.map(v=>
+    `<span class="chip ${inp[key]===v?'on':''}" onclick="setInput('${key}','${v}')">${v}</span>`).join('');
+  let html=`
+    <div class="ctrl-block"><div class="ctrl-label">종목</div>
+      <div class="filter-row">${m.events.map(e=>`<span class="chip ${inp.event===e?'on':''}" onclick="setInput('event','${e}')">${e}</span>`).join('')}</div></div>
+    <div class="ctrl-block"><div class="ctrl-label">체류 형태</div><div class="filter-row">${chips(stays,'stay')}</div></div>
+    <div class="ctrl-block"><div class="ctrl-label">선호 테마</div><div class="filter-row">${chips(themes,'theme')}</div></div>
+    <button class="btn" onclick="generate()">🗺️ 맞춤 동선 추천받기</button>`;
+  if(state.itinerary){
+    html+=`<div style="margin-top:18px">`;
+    const r=RECOVERY[inp.event];
+    html+=`<div class="hint" style="margin-bottom:14px">
+      <b>${inp.event} 컨디션 룰</b> · 회복강도: ${r.intensity}<br>D-1 권장 보행 ${r.walk} · ${r.dplus}</div>`;
+    state.itinerary.forEach(d=>{
+      html+=`<div class="day-block"><span class="day-tag day-${d.cls}">${d.label}</span>
+        <div class="day-note">${d.note}</div><div class="tl">`;
+      d.blocks.forEach((b,i)=>{
+        html+=`<div class="tl-item" onclick="focusPoi(${b.lat??'null'},${b.lng??'null'},'${(b.title||'').replace(/'/g,'')}')">
+          <div class="tl-time">${b.time}</div>
+          <div class="tl-title">${b.title}${b.cat?`<span class="tl-cat cat-${b.cat}">${CAT_LABEL[b.cat]}</span>`:''}</div>
+          <div class="tl-detail">${b.detail}</div></div>`;
+      });
+      html+=`</div></div>`;
+    });
+    html+=`</div>`;
+  }else{
+    html+=`<div class="hint" style="margin-top:16px">종목·체류·테마를 고르고 버튼을 누르면 D-1 → D-day → D+1 타임라인이 지도 위에 그려집니다.</div>`;
+  }
+  document.getElementById('tabbody').innerHTML=html;
+  // 지도: 대회장만
+  clearMap();
+  pin(m.lat,m.lng,m.name+' (대회장)','race').addTo(markerLayer);
+  map.setView([m.lat,m.lng],13);
+}
+function setInput(k,v){ state.input[k]=v; state.itinerary=null; renderM1(); }
+
+function pickPOI(m,cat,theme,exclude){
+  const pool=m.pois.filter(p=>p.cat===cat&&!exclude.includes(p.name));
+  const themed=pool.filter(p=>(p.themes||[]).includes(theme));
+  const chosen=(themed[0]||pool[0]);
+  if(chosen) exclude.push(chosen.name);
+  return chosen;
+}
+function generate(){
+  const m=state.selected, {event,stay,theme}=state.input, r=RECOVERY[event];
+  const used=[];
+  const days=[];
+  const blk=(time,title,detail,cat,poi)=>({time,title,detail,cat,lat:poi?.lat,lng:poi?.lng});
+
+  // D-1 (전날) — 당일치기 제외
+  if(stay!=='당일치기'){
+    const food=pickPOI(m,'food',theme,used);
+    const easyCourse=m.pois.filter(p=>p.cat==='course'&&p.dist<=(event==='풀'?3:event==='하프'?5:8))
+                          .sort((a,b)=>a.dist-b.dist)[0] || m.pois.find(p=>p.cat==='course');
+    days.push({label:'D-1 · 대회 전날', cls:'d1',
+      note:`도착 + 카보로딩 + 가벼운 산책 (권장 보행 ${r.walk})`,
+      blocks:[
+        blk('15:00','비브 픽업 / 도착','대회장 인근 체크인 — '+m.bib,'race',m),
+        blk('17:30','카보로딩 식사', food?`${food.name} — ${food.desc}`:'지역 고탄수 로컬식','food',food),
+        blk('19:00','가벼운 산책', easyCourse?`${easyCourse.name} ${easyCourse.dist}km(${easyCourse.level}) — 컨디션 조절`:'대회장 주변 평지','course',easyCourse),
+        blk('21:30','취침 권장 알림','수면 7시간 이상 확보',null,null),
+      ]});
+    if(easyCourse) used.push(easyCourse.name);
+  }
+
+  // D-day
+  const ddayBlocks=[
+    blk(m.startTime,`${event} 출발`,`${m.name} — ${event} 스타트`,'race',m),
+    blk('정오','완주 · 짐찾기 · 샤워','피니시라인 인근 코인샤워·짐보관 이용',null,null),
+  ];
+  if(event==='풀'){
+    const w=pickPOI(m,'wellness',theme,used);
+    ddayBlocks.push(blk('14:00','회복 집중 (도보 최소)', w?`${w.name} — 냉온교차욕으로 젖산 제거`:'스파·온천 회복','wellness',w));
+    ddayBlocks.push(blk('16:00','휴식 · 귀가 준비',r.ddayPM,null,null));
+  }else if(event==='하프'){
+    const w=pickPOI(m,'wellness',theme,used);
+    ddayBlocks.push(blk('14:00','온천·휴식', w?`${w.name} — ${r.ddayPM}`:'온천·휴식','wellness',w));
+    const t=pickPOI(m,theme==='맛집'?'food':'tour',theme,used);
+    if(t) ddayBlocks.push(blk('16:00', theme==='맛집'?'로컬 맛집':'가벼운 관광', `${t.name} — ${t.desc}`, theme==='맛집'?'food':'tour', t));
+  }else{ // 5K·10K
+    const t=pickPOI(m,theme==='맛집'?'food':theme==='웰니스'?'wellness':'tour',theme,used);
+    ddayBlocks.push(blk('14:00',r.ddayPM.includes('자유')?'오후 자유 관광':'오후 관광', t?`${t.name} — ${t.desc}`:'지역 관광',
+      theme==='맛집'?'food':theme==='웰니스'?'wellness':'tour',t));
+    const fest=m.pois.find(p=>p.cat==='festival');
+    if(fest){ ddayBlocks.push(blk('17:00','동시개최 축제 둘러보기',`${fest.name} — ${fest.desc}`,'festival',fest)); used.push(fest.name); }
+    const food=pickPOI(m,'food',theme,used);
+    if(food) ddayBlocks.push(blk('19:00','지역 맛집 저녁',`${food.name} — ${food.desc}`,'food',food));
+  }
+  days.push({label:'D-day · 대회 당일', cls:'dday', note:r.ddayPM, blocks:ddayBlocks});
+
+  // D+1 — 2박3일만
+  if(stay==='2박3일'){
+    const dpBlocks=[];
+    if(r.noHard){ // 풀·하프 → 회복형
+      const w=pickPOI(m,'wellness',theme,used) || m.pois.find(p=>p.cat==='wellness');
+      dpBlocks.push(blk('10:00', event==='풀'?'스파 회복 (냉온교차)':'온천·족욕', w?`${w.name} — ${r.dplus}`:r.dplus,'wellness',w));
+      if(event==='하프'){
+        const c=m.pois.filter(p=>p.cat==='course'&&p.level!=='어려움'&&!used.includes(p.name)).sort((a,b)=>a.dist-b.dist)[0];
+        if(c){ dpBlocks.push(blk('12:00','짧은 산책 (고강도 제외)',`${c.name} ${c.dist}km(${c.level})`,'course',c)); used.push(c.name); }
+      }
+      const t=pickPOI(m,theme==='맛집'?'food':'tour',theme,used);
+      if(t) dpBlocks.push(blk('14:00','정적 관광', `${t.name} — ${t.desc}`, theme==='맛집'?'food':'tour', t));
+    }else{ // 5K·10K → 일반 관광
+      const t1=pickPOI(m,theme==='맛집'?'food':theme==='웰니스'?'wellness':'tour',theme,used);
+      if(t1) dpBlocks.push(blk('10:00','오전 관광',`${t1.name} — ${t1.desc}`,theme==='맛집'?'food':theme==='웰니스'?'wellness':'tour',t1));
+      const food=pickPOI(m,'food',theme,used);
+      if(food) dpBlocks.push(blk('12:30','로컬 점심',`${food.name} — ${food.desc}`,'food',food));
+      const t2=pickPOI(m,'tour',theme,used);
+      if(t2) dpBlocks.push(blk('14:00','오후 관광',`${t2.name} — ${t2.desc}`,'tour',t2));
+    }
+    dpBlocks.push(blk('16:00','체크아웃 · 귀가',r.dplus,null,null));
+    days.push({label:'D+1 · 회복 관광', cls:'dplus', note:r.dplus, blocks:dpBlocks});
+  }
+
+  state.itinerary=days;
+  renderM1();
+  drawRoute(days);
+}
+function drawRoute(days){
+  clearMap();
+  const m=state.selected;
+  pin(m.lat,m.lng,m.name+' (대회장)','race').addTo(markerLayer);
+  const pts=[];
+  let n=0;
+  days.forEach(d=>d.blocks.forEach(b=>{
+    if(b.lat&&b.lng&&!(b.lat===m.lat&&b.lng===m.lng)){
+      n++; pin(b.lat,b.lng,b.title,b.cat,n).addTo(markerLayer);
+      pts.push([b.lat,b.lng]);
+    }
+  }));
+  if(pts.length){
+    L.polyline([[m.lat,m.lng],...pts],{color:'#0f7b6c',weight:3,opacity:.6,dashArray:'6,8'}).addTo(routeLayer);
+    const all=[[m.lat,m.lng],...pts];
+    map.fitBounds(all,{padding:[60,60]});
+  }
+}
+function focusPoi(lat,lng,title){
+  if(!lat||!lng) return;
+  map.setView([lat,lng],15);
+}
+
+/* ---------- M3: 인근 축제·행사 ---------- */
+function renderM3(){
+  const m=state.selected;
+  const fests=m.pois.filter(p=>p.cat==='festival');
+  let html=`<div class="hint" style="margin-bottom:12px">대회 일정·반경 기준 동시 개최되는 축제·행사예요. 마커를 눌러 위치를 확인하세요.</div>`;
+  fests.forEach(f=>{
+    html+=`<div class="poi-card" onclick="focusPoi(${f.lat},${f.lng},'${f.name}')">
+      <h4 class="poi-name">🎉 ${f.name}</h4><p class="poi-desc">${f.desc}</p>
+      <div class="poi-meta">대회 주말 동시 개최</div></div>`;
+  });
+  if(!fests.length) html+=`<div class="hint">등록된 인근 축제가 없어요.</div>`;
+  document.getElementById('tabbody').innerHTML=html;
+  clearMap();
+  pin(m.lat,m.lng,m.name+' (대회장)','race').addTo(markerLayer);
+  fests.forEach((f,i)=>pin(f.lat,f.lng,f.name,'festival',i+1).addTo(markerLayer));
+  const all=[[m.lat,m.lng],...fests.map(f=>[f.lat,f.lng])];
+  if(all.length>1) map.fitBounds(all,{padding:[60,60]}); else map.setView([m.lat,m.lng],13);
+}
+
+/* ---------- M4: 러닝·산책 코스 ---------- */
+function renderM4(){
+  const m=state.selected;
+  const courses=m.pois.filter(p=>p.cat==='course').sort((a,b)=>a.dist-b.dist);
+  const lvColor={'쉬움':'#1a8a3f','보통':'#c2790b','어려움':'#d92b2b'};
+  let html=`<div class="hint" style="margin-bottom:12px">두루누비 데이터 기반 걷기·회복런 코스 (거리·난이도별). 대회 전 컨디션 조절이나 비(非)대회 여행 중에도 활용하세요.</div>`;
+  courses.forEach((c,i)=>{
+    html+=`<div class="poi-card" onclick="focusPoi(${c.lat},${c.lng},'${c.name}')">
+      <h4 class="poi-name">🥾 ${c.name}</h4><p class="poi-desc">${c.desc}</p>
+      <div class="poi-meta">${c.dist}km · <span style="color:${lvColor[c.level]}">${c.level}</span></div></div>`;
+  });
+  document.getElementById('tabbody').innerHTML=html;
+  clearMap();
+  pin(m.lat,m.lng,m.name+' (대회장)','race').addTo(markerLayer);
+  courses.forEach((c,i)=>pin(c.lat,c.lng,`${c.name} ${c.dist}km`,'course',i+1).addTo(markerLayer));
+  const all=[[m.lat,m.lng],...courses.map(c=>[c.lat,c.lng])];
+  if(all.length>1) map.fitBounds(all,{padding:[60,60]}); else map.setView([m.lat,m.lng],13);
+}
+
+/* ---------- 시작 ---------- */
+initMap();
+render();
+</script>
+</body>
+</html>
