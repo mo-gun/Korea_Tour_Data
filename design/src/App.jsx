@@ -9,6 +9,7 @@ import StayScreen from './screens/StayScreen.jsx'
 import ResultScreen from './screens/ResultScreen.jsx'
 import TripsScreen from './screens/TripsScreen.jsx'
 import CoursesScreen from './screens/CoursesScreen.jsx'
+import RouteScreen from './screens/RouteScreen.jsx'
 
 const SCREENS = {
   home: HomeScreen,
@@ -19,9 +20,10 @@ const SCREENS = {
   result: ResultScreen,
   trips: TripsScreen,
   courses: CoursesScreen,
+  route: RouteScreen,
 }
 // 하단 탭바를 노출하는 최상위 화면
-const TOP_LEVEL = new Set(['home', 'result', 'trips', 'courses'])
+const TOP_LEVEL = new Set(['home', 'result', 'trips', 'courses', 'route'])
 
 export default function App() {
   const { state } = useApp()

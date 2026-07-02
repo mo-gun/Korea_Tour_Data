@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import Icon from '../components/Icon.jsx'
 import MapView from '../map/MapView.jsx'
-import { browseCourses, buildRouteNear, courseRegions, geocodePlace } from '../lib/runninggu/index.js'
+import { browseCourses, buildRouteNear, courseRegions, geocodePlace, searchWalkSpots } from '../lib/runninggu/index.js'
 
 // 러닝코스(M4) — 두루누비 걷기 코스(코리아둘레길).
 //  · 내 주변: 사용자 위치에서 가까운 코스를 원하는 길이로 잘라 추천 + 지도 표시
 //  · 지역별: 시·도/거리/난이도로 전체 코스 브라우징
-const LENGTHS = [3, 5, 10, 15]
 // 코스가 실제로 있는 해안·수도권 프리셋(GPS 대체/데모용).
 const PRESETS = [
   { label: '부산 해운대', lat: 35.1587, lng: 129.1604 },
@@ -48,6 +47,7 @@ function NearMode() {
   const [selId, setSelId] = useState(null)
   const [q, setQ] = useState('')
   const [hits, setHits] = useState(null)       // 검색 결과 후보
+  const [spots, setSpots] = useState([])       // 도시 보강: 카카오 걷기 좋은 곳
 
   const useGps = () => {
     if (!navigator.geolocation) { setLocating(false); return }
@@ -72,6 +72,16 @@ function NearMode() {
   )
   const selected = routes.find((r) => r.id === selId) || routes[0] || null
 
+  // 도시 보강: 위치가 바뀌면 카카오 로컬로 근처 걷기 좋은 곳(점) 조회.
+  useEffect(() => {
+    if (!loc) { setSpots([]); return }
+    let on = true
+    searchWalkSpots({ lat: loc.lat, lng: loc.lng, radiusM: 3000, limit: 10 })
+      .then((s) => { if (on) setSpots(s) })
+      .catch(() => { if (on) setSpots([]) })
+    return () => { on = false }
+  }, [loc])
+
   return (
     <>
       {/* 출발지 검색 */}
@@ -94,12 +104,21 @@ function NearMode() {
             onClick={() => { setLoc({ ...p }); setSelId(null); setHits(null) }}>{p.label}</button>
         ))}
       </div>
-      {/* 목표 거리 */}
-      <div className="chip-row scr" style={{ flex: 'none', paddingTop: 2 }}>
-        <span style={{ fontSize: 12, color: 'var(--c-ink-5)', alignSelf: 'center', paddingRight: 4 }}>몇 km 뛸까요</span>
-        {LENGTHS.map((L) => (
-          <button key={L} className={`chip ${targetKm === L ? 'active' : ''}`} onClick={() => setTargetKm(L)}>{L}km</button>
-        ))}
+      {/* 목표 거리 — 자유 선택 슬라이더 */}
+      <div style={{ padding: '2px 22px 8px', flex: 'none' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+          <span style={{ fontSize: 12, color: 'var(--c-ink-5)' }}>몇 km 뛸까요</span>
+          <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--c-primary)' }}>{targetKm}km</span>
+        </div>
+        <input
+          type="range" min="1" max="21" step="0.5" value={targetKm}
+          onChange={(e) => setTargetKm(Number(e.target.value))}
+          style={{ width: '100%', accentColor: 'var(--c-primary)' }}
+          aria-label="목표 거리"
+        />
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--c-ink-6)', marginTop: 2 }}>
+          <span>1km</span><span>21km (풀코스 하프)</span>
+        </div>
       </div>
 
       <div className="scr scr-body" style={{ padding: '4px 22px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -160,6 +179,27 @@ function NearMode() {
             </div>
           </button>
         ))}
+
+        {/* 도시 보강 — 카카오 로컬 '걷기 좋은 곳'(점). 두루누비가 없거나 부족한 지역 대비. */}
+        {loc && spots.length > 0 && (
+          <>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-ink-4)', marginTop: 4 }}>
+              이 근처 걷기 좋은 곳 <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--c-ink-6)' }}>· 카카오</span>
+            </div>
+            {spots.map((s) => (
+              <a key={s.name + s.addr} href={s.url} target="_blank" rel="noreferrer" className="race-card" style={{ textDecoration: 'none' }}>
+                <span style={{ flex: 'none', width: 50, height: 50, borderRadius: 14, background: 'var(--cat-nature-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--cat-nature-fg)' }}>
+                  <Icon name="courses" size={22} stroke={2} />
+                </span>
+                <div className="body">
+                  <div className="name" style={{ fontSize: 15 }}>{s.name}</div>
+                  <div className="place">{s.category} · {fmtM(s.distM)}</div>
+                  <div className="evt-tags"><span className="evt-tag">{s.addr}</span></div>
+                </div>
+              </a>
+            ))}
+          </>
+        )}
       </div>
     </>
   )

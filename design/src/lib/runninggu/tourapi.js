@@ -6,6 +6,36 @@ import { addDays } from './dates.js'
 const KTO = '/api/kto'
 const KAKAO = '/api/kakao'
 
+// 근처 '걷기 좋은 곳' — 카카오 로컬 키워드 검색(공원·산책로·하천). 두루누비가 빈 도시 보강용.
+//  점(장소) 단위 결과. 거리(m) 오름차순, 이름 중복 제거.
+export async function searchWalkSpots({ lat, lng, radiusM = 3000, limit = 10 }) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return []
+  const queries = ['공원', '산책로', '둘레길', '하천']
+  const seen = new Set()
+  const out = []
+  for (const q of queries) {
+    try {
+      const res = await fetch(`${KAKAO}/v2/local/search/keyword.json?query=${encodeURIComponent(q)}&x=${lng}&y=${lat}&radius=${radiusM}&sort=distance&size=15`)
+      if (!res.ok) continue
+      const json = await res.json()
+      for (const d of json.documents || []) {
+        const key = d.place_name + d.address_name
+        if (seen.has(key)) continue
+        seen.add(key)
+        out.push({
+          name: d.place_name,
+          category: (d.category_name || '').split('>').pop()?.trim() || q,
+          addr: d.road_address_name || d.address_name || '',
+          lat: Number(d.y), lng: Number(d.x),
+          distM: Number(d.distance) || 0,
+          url: d.place_url || '',
+        })
+      }
+    } catch { /* 다음 키워드로 */ }
+  }
+  return out.sort((a, b) => a.distM - b.distM).slice(0, limit)
+}
+
 // 장소/주소 검색 → 좌표. 카카오 로컬 키워드 검색(프록시가 REST 키 주입). 실패 시 [].
 export async function geocodePlace(query, count = 5) {
   if (!query || !query.trim()) return []
