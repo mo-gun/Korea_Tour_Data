@@ -3,20 +3,22 @@ import { ensureKakao } from '../lib/runninggu/index.js'
 
 // 지도 어댑터 — 카카오맵 우선, 불가 시 SVG 폴백.
 // props: pins[{n,id,lat,lng,title,catKey}], activeId, onPinClick, accent, height
-export default function MapView({ pins = [], activeId, onPinClick, accent = 'var(--c-primary)', height = 300 }) {
+//        polyline[[lat,lng],...] — 경로선(코스 구간) 표시용. pins 없이 단독 사용 가능.
+export default function MapView({ pins = [], polyline = null, activeId, onPinClick, accent = 'var(--c-primary)', height = 300 }) {
   const [hasKakao, setHasKakao] = useState(false)
   useEffect(() => { let m = true; ensureKakao().then((k) => m && setHasKakao(!!k)); return () => { m = false } }, [])
 
-  if (hasKakao) return <KakaoMap pins={pins} activeId={activeId} onPinClick={onPinClick} accent={accent} height={height} />
-  return <SvgMap pins={pins} activeId={activeId} onPinClick={onPinClick} accent={accent} height={height} />
+  if (hasKakao) return <KakaoMap pins={pins} polyline={polyline} activeId={activeId} onPinClick={onPinClick} accent={accent} height={height} />
+  return <SvgMap pins={pins} polyline={polyline} activeId={activeId} onPinClick={onPinClick} accent={accent} height={height} />
 }
 
 // ── 카카오맵 ──
-function KakaoMap({ pins, activeId, onPinClick, accent, height }) {
+function KakaoMap({ pins, polyline, activeId, onPinClick, accent, height }) {
   const el = useRef(null)
   const map = useRef(null)
   const overlays = useRef([])
   const poly = useRef(null)
+  const coursePoly = useRef(null)
   const lastSig = useRef('')
 
   useEffect(() => {
@@ -24,6 +26,21 @@ function KakaoMap({ pins, activeId, onPinClick, accent, height }) {
     if (!kakao || !el.current) return
     map.current = new kakao.maps.Map(el.current, { center: new kakao.maps.LatLng(36.5, 127.8), level: 6 })
   }, [])
+
+  // 코스 경로선(polyline prop) — 핀과 독립적으로 그린다.
+  useEffect(() => {
+    const kakao = window.kakao
+    const m = map.current
+    if (!kakao || !m) return
+    if (coursePoly.current) { coursePoly.current.setMap(null); coursePoly.current = null }
+    if (!polyline || polyline.length < 2) return
+    const path = polyline.map(([la, ln]) => new kakao.maps.LatLng(la, ln))
+    coursePoly.current = new kakao.maps.Polyline({ path, strokeWeight: 5, strokeColor: '#2B5CFF', strokeOpacity: 0.95 })
+    coursePoly.current.setMap(m)
+    const bounds = new kakao.maps.LatLngBounds()
+    path.forEach((ll) => bounds.extend(ll))
+    m.setBounds(bounds, 30, 30, 30, 30)
+  }, [polyline])
 
   // 핀/폴리라인 재구축 (편집·날짜변경·활성변경 시 파생 재계산)
   useEffect(() => {
@@ -66,21 +83,24 @@ function KakaoMap({ pins, activeId, onPinClick, accent, height }) {
   return (
     <div className="mapwrap" style={{ height }}>
       <div ref={el} className="map-kakao" />
-      <Legend />
+      {pins.length > 0 && <Legend />}
     </div>
   )
 }
 
 // ── SVG 폴백 ──
-function SvgMap({ pins, activeId, onPinClick, accent, height }) {
+function SvgMap({ pins, polyline, activeId, onPinClick, accent, height }) {
   const W = 420
   const H = height
   const pad = 46
-  const lats = pins.map((p) => p.lat)
-  const lngs = pins.map((p) => p.lng)
+  // 바운드 계산엔 핀 + 코스 경로선 좌표를 모두 포함.
+  const linePts = (polyline || []).map(([lat, lng]) => ({ lat, lng }))
+  const allPts = [...pins, ...linePts]
+  const lats = allPts.map((p) => p.lat)
+  const lngs = allPts.map((p) => p.lng)
   let minLat = Math.min(...lats), maxLat = Math.max(...lats)
   let minLng = Math.min(...lngs), maxLng = Math.max(...lngs)
-  if (!pins.length) { minLat = maxLat = 36.5; minLng = maxLng = 127.8 }
+  if (!allPts.length) { minLat = maxLat = 36.5; minLng = maxLng = 127.8 }
   // 범위가 0이면 패딩 부여
   if (maxLat - minLat < 1e-4) { minLat -= 0.01; maxLat += 0.01 }
   if (maxLng - minLng < 1e-4) { minLng -= 0.01; maxLng += 0.01 }
@@ -92,6 +112,8 @@ function SvgMap({ pins, activeId, onPinClick, accent, height }) {
   }
   const pts = pins.map(toXY)
   const line = pts.map((pt, i) => `${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`).join(' ')
+  const coursePts = linePts.map(toXY)
+  const courseLine = coursePts.map((pt, i) => `${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`).join(' ')
 
   return (
     <div className="mapwrap" style={{ height }}>
@@ -105,6 +127,8 @@ function SvgMap({ pins, activeId, onPinClick, accent, height }) {
           <path d={`M170 -10 C 160 ${H * 0.27} 195 ${H * 0.5} 170 ${H + 10}`} />
         </g>
         {pts.length > 1 && <path d={line} fill="none" stroke="#2B5CFF" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.95" />}
+        {coursePts.length > 1 && <path d={courseLine} fill="none" stroke="#2B5CFF" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.95" />}
+        {coursePts.length > 1 && <circle cx={coursePts[0].x} cy={coursePts[0].y} r="7" fill="#2B5CFF" stroke="#fff" strokeWidth="3" />}
       </svg>
       {pins.map((p, i) => (
         <button
@@ -117,7 +141,7 @@ function SvgMap({ pins, activeId, onPinClick, accent, height }) {
           {p.n}
         </button>
       ))}
-      <Legend />
+      {pins.length > 0 && <Legend />}
     </div>
   )
 }

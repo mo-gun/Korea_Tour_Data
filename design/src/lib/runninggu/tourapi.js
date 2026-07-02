@@ -4,6 +4,25 @@
 import { addDays } from './dates.js'
 
 const KTO = '/api/kto'
+const KAKAO = '/api/kakao'
+
+// 장소/주소 검색 → 좌표. 카카오 로컬 키워드 검색(프록시가 REST 키 주입). 실패 시 [].
+export async function geocodePlace(query, count = 5) {
+  if (!query || !query.trim()) return []
+  try {
+    const res = await fetch(`${KAKAO}/v2/local/search/keyword.json?query=${encodeURIComponent(query.trim())}&size=${count}`)
+    if (!res.ok) return []
+    const json = await res.json()
+    return (json.documents || []).map((d) => ({
+      name: d.place_name,
+      addr: d.road_address_name || d.address_name || '',
+      lat: Number(d.y),
+      lng: Number(d.x),
+    }))
+  } catch {
+    return []
+  }
+}
 
 // data.go.kr 응답의 body.items.item 을 항상 배열로 정규화(없으면 []).
 function itemsOf(json) {
@@ -73,46 +92,5 @@ export async function searchFestivalsNear({ lat, lng, date, windowDays = 14, rad
     .slice(0, limit)
 }
 
-// ── 두루누비 걷기 코스 ── 난이도 코드 → 라벨.
-const LEVEL = { 1: '쉬움', 2: '보통', 3: '어려움' }
-
-// 시·도 표기 매칭용 별칭(크롤링 region 은 '경북', 두루누비 sigun 도 '경남 밀양시' 형태 단축형).
-const SIDO_ALIAS = {
-  서울: ['서울'], 부산: ['부산'], 대구: ['대구'], 인천: ['인천'], 광주: ['광주'],
-  대전: ['대전'], 울산: ['울산'], 세종: ['세종'], 경기: ['경기'], 강원: ['강원'],
-  충북: ['충북', '충청북'], 충남: ['충남', '충청남'], 전북: ['전북', '전라북'],
-  전남: ['전남', '전라남'], 경북: ['경북', '경상북'], 경남: ['경남', '경상남'], 제주: ['제주'],
-}
-
-// sigun('경남 밀양시') → 표준 시·도 라벨('경남'). 별칭(경상남→경남)도 흡수.
-function sidoOf(sigun) {
-  const head = String(sigun || '').trim().split(/\s+/)[0] || ''
-  for (const [key, aliases] of Object.entries(SIDO_ALIAS)) {
-    if (aliases.some((a) => head.startsWith(a))) return key
-  }
-  return head
-}
-
-// 걷기 코스 조회(두루누비 courseList, DNWW). 전체(261코스) 받아 정규화 후 거리 오름차순.
-//  region: 시·도('경북')로 필터 / minKm·maxKm: 거리 범위 / limit: 최대 개수.
-export async function fetchWalkingCourses({ region, minKm = 0, maxKm = 100, limit = 300 } = {}) {
-  const items = await ktoGet('Durunubi', 'courseList', { brdDiv: 'DNWW', numOfRows: '300' })
-  const aliases = region ? (SIDO_ALIAS[region] || [region]) : null
-  return items
-    .map((c) => ({
-      id: c.crsIdx,
-      name: c.crsKorNm,
-      distKm: Number(c.crsDstnc),
-      minutes: Number(c.crsTotlRqrmHour) || null,
-      level: LEVEL[Number(c.crsLevel)] || '보통',
-      cycle: c.crsCycle || '',
-      sigun: (c.sigun || '').trim(),
-      sido: sidoOf(c.sigun),
-      summary: c.crsSummary || c.crsContents || '',
-      gpx: c.gpxpath || '',
-    }))
-    .filter((c) => c.name && Number.isFinite(c.distKm) && c.distKm >= minKm && c.distKm <= maxKm)
-    .filter((c) => (aliases ? aliases.some((a) => c.sigun.includes(a)) : true))
-    .sort((a, b) => a.distKm - b.distKm)
-    .slice(0, limit)
-}
+// 두루누비 걷기 코스는 GPX 좌표까지 필요해 사전 파싱본(courses.js)을 사용한다.
+//  (라이브 courseList 어댑터는 courses.js/durunubi_courses.json 로 대체됨)
