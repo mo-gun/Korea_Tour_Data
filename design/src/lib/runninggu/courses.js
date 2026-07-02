@@ -135,6 +135,38 @@ export function buildRouteNear({ lat, lng, targetKm = 5, radiusKm = 8, limit = 1
   return out.sort((a, b) => a.accessM - b.accessM).slice(0, limit)
 }
 
+// ── 도시 보강용 코스 ── 두루누비가 없는 지역에서, 근처 걷기 스팟(카카오 공원·하천 등)을
+//  가까운 것부터 이어 목표거리 안팎의 산책 코스를 만든다. 직선 연결 기준(대략치).
+//  spots: [{ name, lat, lng, category, url }] (거리순 무관, 내부에서 최근접 탐욕 연결)
+export function chainSpots({ lat, lng, spots, targetKm = 5 }) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || !spots || spots.length < 2) return null
+  const targetM = targetKm * 1000
+  const remain = spots.filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lng)).map((s) => ({ ...s }))
+  const ordered = []
+  let cur = [lat, lng]
+  let total = 0
+  while (remain.length) {
+    let bi = -1, bd = Infinity
+    for (let i = 0; i < remain.length; i++) {
+      const d = haversineM(cur, [remain[i].lat, remain[i].lng])
+      if (d < bd) { bd = d; bi = i }
+    }
+    // 목표 초과 시(스팟 2곳 이상 확보됐으면) 종료
+    if (total + bd > targetM && ordered.length >= 2) break
+    const nxt = remain.splice(bi, 1)[0]
+    total += bd
+    ordered.push(nxt)
+    cur = [nxt.lat, nxt.lng]
+  }
+  if (ordered.length < 2) return null
+  return {
+    stops: ordered,
+    points: ordered.map((s) => [s.lat, s.lng]),
+    distKm: Math.round((total / 1000) * 10) / 10,
+    minutes: Math.max(1, Math.round(total / 75)), // 도심 산책 ≈ 분당 75m
+  }
+}
+
 // sido별 코스 개수(브라우징 칩 정렬용).
 export function courseRegions() {
   const cnt = {}
