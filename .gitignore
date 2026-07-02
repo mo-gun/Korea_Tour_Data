@@ -9,3 +9,6 @@ tmp/
 .vscode/
 *.log
 *.tmp
+
+# macOS
+.DS_Store
