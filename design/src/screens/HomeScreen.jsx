@@ -5,12 +5,14 @@ import { dow, todayStr, regStatusOf } from '../lib/runninggu/index.js'
 
 const MON_EN = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
 const DOW_KO = ['일', '월', '화', '수', '목', '금', '토']
+const EVENTS = ['5K', '10K', '하프', '풀']
 
 export default function HomeScreen() {
   const { races, dispatch } = useApp()
   const [view, setView] = useState('list')
   const [region, setRegion] = useState(null)
   const [month, setMonth] = useState(null)
+  const [evt, setEvt] = useState(null)
   const [openOnly, setOpenOnly] = useState(false)
   const [q, setQ] = useState('')
 
@@ -27,12 +29,13 @@ export default function HomeScreen() {
     return upcoming
       .filter((r) => (region ? r.region === region : true))
       .filter((r) => (month ? Number(r.date.slice(5, 7)) === month : true))
+      .filter((r) => (evt ? r.eventTypes.includes(evt) : true))
       .filter((r) => (openOnly ? regStatusOf(r) === '접수중' : true))
       .filter((r) => (q ? (r.name + r.venue + r.region).includes(q) : true))
       .sort((a, b) => a.date.localeCompare(b.date))
-  }, [upcoming, region, month, openOnly, q])
+  }, [upcoming, region, month, evt, openOnly, q])
 
-  const clearAll = () => { setRegion(null); setMonth(null); setOpenOnly(false); setQ('') }
+  const clearAll = () => { setRegion(null); setMonth(null); setEvt(null); setOpenOnly(false); setQ('') }
 
   return (
     <>
@@ -67,9 +70,14 @@ export default function HomeScreen() {
         </label>
       </div>
 
-      {/* 필터 칩 — 접수 가능만을 맨 앞으로 */}
+      {/* 필터 칩 — 접수 가능 → 종목(거리) → 지역 → 월 순 */}
       <div className="chip-row scr" style={{ flex: 'none' }}>
         <button className={`chip ${openOnly ? 'active' : ''}`} onClick={() => setOpenOnly(!openOnly)}>접수 가능만</button>
+        {EVENTS.map((e) => (
+          <button key={e} className={`chip ${evt === e ? 'active' : ''}`} onClick={() => setEvt(evt === e ? null : e)}>
+            {e}{evt === e && <span className="x">✕</span>}
+          </button>
+        ))}
         {regions.map((rg) => (
           <button key={rg} className={`chip ${region === rg ? 'active' : ''}`} onClick={() => setRegion(region === rg ? null : rg)}>
             {rg}{region === rg && <span className="x">✕</span>}
