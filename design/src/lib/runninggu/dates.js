@@ -11,6 +11,10 @@ export function fmtDate(dt) {
   const d = String(dt.getDate()).padStart(2, '0')
   return `${y}-${m}-${d}`
 }
+// 오늘 자정 기준 'YYYY-MM-DD'.
+export function todayStr() {
+  return fmtDate(new Date())
+}
 export function addDays(s, n) {
   const dt = parseDate(s)
   dt.setDate(dt.getDate() + n)

@@ -1,64 +1,10 @@
-// 샘플/사전수집 데이터. 원천은 snake_case 라 normalize 레이어를 거친다.
+// 대회 원천 데이터 + 사전수집/합성 POI. 원천은 snake_case 라 normalize 레이어를 거친다.
+// races.json 은 크롤링 파이프라인 산출물(data/races_sample.json)의 복사본.
+//   갱신: cp ../data/races_sample.json design/src/data/races.json
+import CRAWLED_RACES from '../../data/races.json'
 
-// ── 마라톤 대회 (snake_case 원천 형태) ──
-export const RAW_RACES = [
-  {
-    id: 'gyeongju-intl-2026-10-19', name: '경주국제마라톤',
-    region: '경북', venue: '경주실내체육관',
-    date: '2026-10-19', start_time: '07:00', event_types: ['풀', '하프', '10k', '5km'],
-    reg_status: '접수중', reg_start: '2026-08-20', reg_end: '2026-10-05',
-    organizer: '경주시·경북육상연맹', source: '마라톤온라인', checked: '2026-06-15',
-    official_url: 'http://www.gyeongjumarathon.com', lat: 35.8562, lng: 129.2247, category: '로드',
-  },
-  {
-    id: 'pohang-beach-2026-10-12', name: '포항해변마라톤',
-    region: '경북', venue: '영일대해수욕장',
-    date: '2026-10-12', start_time: '08:00', event_types: ['10km', '5km'],
-    reg_status: '접수중', reg_start: '2026-08-01', reg_end: '2026-10-01',
-    organizer: '포항시', source: '마라톤GO', checked: '2026-06-14',
-    official_url: 'http://www.pohangmarathon.com', lat: 36.0560, lng: 129.3770, category: '로드',
-  },
-  {
-    id: 'andong-mask-2026-10-26', name: '안동탈춤마라톤',
-    region: '경북', venue: '탈춤공원',
-    date: '2026-10-26', start_time: '09:00', event_types: ['full', 'half'],
-    reg_status: '마감', reg_start: '2026-07-10', reg_end: '2026-09-30',
-    organizer: '안동시', source: '마라톤온라인', checked: '2026-06-10',
-    official_url: 'http://www.andongmarathon.com', lat: 36.5560, lng: 128.7290, category: '로드',
-  },
-  {
-    id: '1st-modurun-2026-06-13', name: '제1회 모두런',
-    region: '세종', venue: '세종중앙공원, 국립세종수목원',
-    date: '2026-06-13', start_time: '08:00', event_types: ['5km'],
-    reg_status: '마감', reg_start: '2026-05-14', reg_end: '2026-05-20',
-    organizer: '세종시장애인단체연합회', source: '마라톤GO', checked: '2026-06-14',
-    official_url: 'http://www.sfinder.co.kr', lat: 36.49116, lng: 127.27140, category: '로드',
-  },
-  {
-    id: 'chuncheon-2026-10-25', name: '춘천조선일보마라톤',
-    region: '강원', venue: '춘천종합운동장',
-    date: '2026-10-25', start_time: '08:00', event_types: ['full', 'half'],
-    reg_status: '접수중', reg_start: '2026-08-01', reg_end: '2026-10-10',
-    organizer: '조선일보·춘천시', source: '마라톤온라인', checked: '2026-06-15',
-    official_url: 'http://marathon.chosun.com', lat: 37.8720, lng: 127.7360, category: '로드',
-  },
-  {
-    id: 'seoul-intl-2026-11-02', name: '서울국제마라톤',
-    region: '서울', venue: '광화문광장',
-    date: '2026-11-02', start_time: '08:00', event_types: ['full', '10km'],
-    reg_status: '접수중', reg_start: '2026-09-01', reg_end: '2026-10-20',
-    organizer: '서울시·대한육상연맹', source: '마라톤온라인', checked: '2026-06-13',
-    official_url: 'http://www.seoul-marathon.com', lat: 37.5720, lng: 126.9769, category: '로드',
-  },
-  {
-    id: 'jeju-tour-2026-11-09', name: '제주국제관광마라톤',
-    region: '제주', venue: '제주종합경기장',
-    date: '2026-11-09', start_time: '08:30', event_types: ['half', '10km'],
-    reg_status: '접수중', reg_start: '2026-09-10', reg_end: '2026-10-30',
-    organizer: '제주관광공사', source: '마라톤GO', checked: '2026-06-12',
-    official_url: 'http://www.jejumarathon.com', lat: 33.5005, lng: 126.5290, category: '로드',
-  },
-]
+// ── 마라톤 대회 (크롤링 원천) ──
+export const RAW_RACES = CRAWLED_RACES
 
 // ── 사전수집 POI (raceId별, 카카오 실시간 검색 실패 시 폴백) ──
 // 카테고리 키: food|cafe|tour|wellness|nature|history|lodging

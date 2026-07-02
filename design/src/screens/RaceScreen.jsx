@@ -1,15 +1,27 @@
+import { useEffect, useState } from 'react'
 import { useApp } from '../store/appState.jsx'
 import Icon from '../components/Icon.jsx'
 import { AppBar } from '../components/chrome.jsx'
-import { diffDays, shortKo } from '../lib/runninggu/index.js'
-
-const TODAY = '2026-06-18'
+import { diffDays, shortKo, todayStr, searchFestivalsNear } from '../lib/runninggu/index.js'
 
 export default function RaceScreen() {
   const { state, back, go } = useApp()
   const r = state.race
+  const [festivals, setFestivals] = useState([])
+  const [festLoading, setFestLoading] = useState(true)
+
+  useEffect(() => {
+    if (!r) return
+    let on = true
+    setFestLoading(true)
+    searchFestivalsNear({ lat: r.lat, lng: r.lng, date: r.date })
+      .then((list) => { if (on) { setFestivals(list); setFestLoading(false) } })
+      .catch(() => { if (on) { setFestivals([]); setFestLoading(false) } })
+    return () => { on = false }
+  }, [r?.id])
+
   if (!r) return null
-  const d = diffDays(TODAY, r.date)
+  const d = diffDays(todayStr(), r.date)
   const dday = d > 0 ? `D-${d}` : d === 0 ? 'D-DAY' : `D+${-d}`
 
   return (
@@ -51,22 +63,28 @@ export default function RaceScreen() {
           </div>
         </div>
 
-        {/* 인근 축제 미리보기 (디자인 유지 · MVP 정적) */}
-        <div style={{ padding: '14px 0 24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 22px 12px' }}>
-            <div style={{ fontSize: 16, fontWeight: 800 }}>대회 기간 인근 축제</div>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-primary)' }}>더보기</span>
-          </div>
-          <div className="hscroll scr">
-            {[['신라문화제', '10.18 ~ 10.22 · 대회장 2.1km'], ['보문 불빛축제', '상시 · 대회장 3.4km']].map(([t, s]) => (
-              <div className="hcard" key={t}>
-                <div className="img" />
-                <div className="ct">{t}</div>
-                <div className="cs">{s}</div>
+        {/* 인근 축제 — TourAPI searchFestival2 (대회일 전후 · 대회장 반경 내). 없으면 섹션 숨김. */}
+        {(festLoading || festivals.length > 0) && (
+          <div style={{ padding: '14px 0 24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 22px 12px' }}>
+              <div style={{ fontSize: 16, fontWeight: 800 }}>대회 기간 인근 축제</div>
+              <span style={{ fontSize: 12, color: 'var(--c-ink-6)' }}>한국관광공사</span>
+            </div>
+            {festLoading ? (
+              <div style={{ padding: '0 22px', fontSize: 13, color: 'var(--c-ink-5)' }}>축제를 찾는 중…</div>
+            ) : (
+              <div className="hscroll scr">
+                {festivals.map((f) => (
+                  <div className="hcard" key={f.contentId}>
+                    <div className="img" style={f.image ? { backgroundImage: `url(${f.image})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined} />
+                    <div className="ct">{f.title}</div>
+                    <div className="cs">{f.dateLabel} · 대회장 {f.distKm.toFixed(1)}km</div>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
-        </div>
+        )}
       </div>
 
       <div className="cta-bar">

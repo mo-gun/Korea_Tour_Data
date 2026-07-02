@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../store/appState.jsx'
 import Icon from '../components/Icon.jsx'
-import { dow } from '../lib/runninggu/index.js'
+import { dow, todayStr } from '../lib/runninggu/index.js'
 
 const MON_EN = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
 
@@ -13,17 +13,23 @@ export default function HomeScreen() {
   const [openOnly, setOpenOnly] = useState(false)
   const [q, setQ] = useState('')
 
-  const regions = useMemo(() => [...new Set(races.map((r) => r.region))], [races])
-  const months = useMemo(() => [...new Set(races.map((r) => Number(r.date.slice(5, 7))))].sort((a, b) => a - b), [races])
+  // 다가오는 대회만 노출(오늘 이후). 지난 대회는 목록에서 제외.
+  const upcoming = useMemo(() => {
+    const today = todayStr()
+    return races.filter((r) => r.date >= today)
+  }, [races])
+
+  const regions = useMemo(() => [...new Set(upcoming.map((r) => r.region))], [upcoming])
+  const months = useMemo(() => [...new Set(upcoming.map((r) => Number(r.date.slice(5, 7))))].sort((a, b) => a - b), [upcoming])
 
   const filtered = useMemo(() => {
-    return races
+    return upcoming
       .filter((r) => (region ? r.region === region : true))
       .filter((r) => (month ? Number(r.date.slice(5, 7)) === month : true))
       .filter((r) => (openOnly ? r.regStatus === '접수중' : true))
       .filter((r) => (q ? (r.name + r.venue + r.region).includes(q) : true))
       .sort((a, b) => a.date.localeCompare(b.date))
-  }, [races, region, month, openOnly, q])
+  }, [upcoming, region, month, openOnly, q])
 
   const clearAll = () => { setRegion(null); setMonth(null); setOpenOnly(false); setQ('') }
 
