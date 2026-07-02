@@ -4,16 +4,16 @@ import { ensureKakao } from '../lib/runninggu/index.js'
 // 지도 어댑터 — 카카오맵 우선, 불가 시 SVG 폴백.
 // props: pins[{n,id,lat,lng,title,catKey}], activeId, onPinClick, accent, height
 //        polyline[[lat,lng],...] — 경로선(코스 구간) 표시용. pins 없이 단독 사용 가능.
-export default function MapView({ pins = [], polyline = null, activeId, onPinClick, accent = 'var(--c-primary)', height = 300 }) {
+export default function MapView({ pins = [], polyline = null, connectPins = true, showLegend = true, activeId, onPinClick, accent = 'var(--c-primary)', height = 300 }) {
   const [hasKakao, setHasKakao] = useState(false)
   useEffect(() => { let m = true; ensureKakao().then((k) => m && setHasKakao(!!k)); return () => { m = false } }, [])
 
-  if (hasKakao) return <KakaoMap pins={pins} polyline={polyline} activeId={activeId} onPinClick={onPinClick} accent={accent} height={height} />
-  return <SvgMap pins={pins} polyline={polyline} activeId={activeId} onPinClick={onPinClick} accent={accent} height={height} />
+  const P = { pins, polyline, connectPins, showLegend, activeId, onPinClick, accent, height }
+  return hasKakao ? <KakaoMap {...P} /> : <SvgMap {...P} />
 }
 
 // ── 카카오맵 ──
-function KakaoMap({ pins, polyline, activeId, onPinClick, accent, height }) {
+function KakaoMap({ pins, polyline, connectPins = true, showLegend = true, activeId, onPinClick, accent, height }) {
   const el = useRef(null)
   const map = useRef(null)
   const overlays = useRef([])
@@ -52,8 +52,10 @@ function KakaoMap({ pins, polyline, activeId, onPinClick, accent, height }) {
     if (!pins.length) return
 
     const path = pins.map((p) => new kakao.maps.LatLng(p.lat, p.lng))
-    poly.current = new kakao.maps.Polyline({ path, strokeWeight: 4, strokeColor: '#2B5CFF', strokeOpacity: 0.9 })
-    poly.current.setMap(m)
+    if (connectPins) {
+      poly.current = new kakao.maps.Polyline({ path, strokeWeight: 4, strokeColor: '#2B5CFF', strokeOpacity: 0.9 })
+      poly.current.setMap(m)
+    }
 
     pins.forEach((p) => {
       const active = p.id === activeId
@@ -67,29 +69,33 @@ function KakaoMap({ pins, polyline, activeId, onPinClick, accent, height }) {
       overlays.current.push(ov)
     })
 
-    // bounds 는 핀 구성이 바뀔 때만 (스크롤로 activeId만 변하면 유지)
+    // bounds 는 핀 구성이 바뀔 때만 (스크롤로 activeId만 변하면 유지).
+    // 경로선(polyline)이 있으면 그쪽 effect 가 bounds 를 잡으므로 여기선 건너뜀.
+    const hasPolyline = polyline && polyline.length >= 2
     const sig = pins.map((p) => p.id).join(',')
     if (sig !== lastSig.current) {
       lastSig.current = sig
-      const bounds = new kakao.maps.LatLngBounds()
-      path.forEach((ll) => bounds.extend(ll))
-      m.setBounds(bounds, 36, 36, 36, 36)
+      if (!hasPolyline) {
+        const bounds = new kakao.maps.LatLngBounds()
+        path.forEach((ll) => bounds.extend(ll))
+        m.setBounds(bounds, 36, 36, 36, 36)
+      }
     } else if (activeId) {
       const p = pins.find((x) => x.id === activeId)
       if (p) m.panTo(new kakao.maps.LatLng(p.lat, p.lng))
     }
-  }, [pins, accent, activeId])
+  }, [pins, accent, activeId, connectPins, polyline])
 
   return (
     <div className="mapwrap" style={{ height }}>
       <div ref={el} className="map-kakao" />
-      {pins.length > 0 && <Legend />}
+      {showLegend && <Legend />}
     </div>
   )
 }
 
 // ── SVG 폴백 ──
-function SvgMap({ pins, polyline, activeId, onPinClick, accent, height }) {
+function SvgMap({ pins, polyline, connectPins = true, showLegend = true, activeId, onPinClick, accent, height }) {
   const W = 420
   const H = height
   const pad = 46
@@ -126,7 +132,7 @@ function SvgMap({ pins, polyline, activeId, onPinClick, accent, height }) {
           <path d={`M-10 ${H * 0.5} C 90 ${H * 0.46} 150 ${H * 0.33} 230 ${H * 0.4} S 380 ${H * 0.46} 430 ${H * 0.4}`} />
           <path d={`M170 -10 C 160 ${H * 0.27} 195 ${H * 0.5} 170 ${H + 10}`} />
         </g>
-        {pts.length > 1 && <path d={line} fill="none" stroke="#2B5CFF" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.95" />}
+        {connectPins && pts.length > 1 && <path d={line} fill="none" stroke="#2B5CFF" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.95" />}
         {coursePts.length > 1 && <path d={courseLine} fill="none" stroke="#2B5CFF" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.95" />}
         {coursePts.length > 1 && <circle cx={coursePts[0].x} cy={coursePts[0].y} r="7" fill="#2B5CFF" stroke="#fff" strokeWidth="3" />}
       </svg>
@@ -141,7 +147,7 @@ function SvgMap({ pins, polyline, activeId, onPinClick, accent, height }) {
           {p.n}
         </button>
       ))}
-      {pins.length > 0 && <Legend />}
+      {showLegend && <Legend />}
     </div>
   )
 }
