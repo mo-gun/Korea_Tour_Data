@@ -13,8 +13,9 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       host: true,
-      port: 5180,
-      strictPort: true, // 포트 고정 → 카카오 콘솔에 등록할 도메인(http://localhost:5180)이 항상 동일
+      // 5173 = 카카오 콘솔 Web 플랫폼에 등록된 도메인. strictPort로 포트 밀림(지도 도메인 불일치) 방지.
+      port: 5173,
+      strictPort: true,
       proxy: {
         // TourAPI: /api/kto/<Service>/<op>?... → apis.data.go.kr/B551011/... (&serviceKey 주입)
         '/api/kto': {

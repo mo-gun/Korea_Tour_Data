@@ -6,16 +6,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Planning + implementation repo for **런닝구(區)** ("RunTrip"), a submission for the **2026 관광데이터 활용 공모전** (Korea Tour Data contest, co-hosted by Kakao). The service is a nationwide marathon calendar plus an event-type/stay/theme-aware travel-itinerary recommender for runners.
 
-The repo mixes runnable code with a large body of reference documentation. Most files are Korean-language docs; the code lives in two places:
+**The master spec is `SPEC.md` at the repo root** (2026-07-02) — it defines the target UX, data contracts, and the verified external-API usage. Read it first for any product/data question.
 
-- `web/` — Next.js 14 (App Router) frontend, the actual demo app.
+The repo mixes runnable code with a large body of reference documentation. Most files are Korean-language docs; the code lives in three places:
+
+- `design/` — Vite + React mobile-first prototype. **This is the reference UX** the final product follows (multi-screen wizard: home→race→plan→taste→stay→result, plus trips/courses tabs; recommendation engine in `src/lib/runninggu/`).
+- `web/` — Next.js 14 (App Router) frontend, the older desktop demo. Kept for reference; superseded by `design/`.
 - `backend/` — standalone Python data-pipeline scripts (crawl-CSV → normalized JSON, geocoding).
 
 Everything else is reference/collateral: `docs/` (VisitKorea/KTO OpenAPI catalog + per-API manuals), `Kakao/` (Kakao API catalog, manuals, and feature→API mapping), `assets/` (raw manual ZIPs, contest files), `data/` (sample CSV/JSON), `submissions/` (proposal docs), `tools/` (a PowerShell script that regenerated the API manuals from the ZIPs).
 
 ## Commands
 
-Frontend (`web/`):
+Design prototype (`design/`, the reference UX):
+```bash
+cd design
+npm install
+npm run dev        # http://localhost:5173 (Vite)
+```
+`design/.env` holds `VITE_KAKAO_MAP_KEY` (gitignored). Without it the app still fully works via the SVG-map + sample-POI fallback.
+
+Legacy frontend (`web/`):
 ```bash
 cd web
 npm install
@@ -31,7 +42,8 @@ Backend (`backend/`):
 ```bash
 cd backend
 pip install -r requirements.txt   # just `requests`
-python normalize_races.py ../data/races_sample.csv            # structure only, no coords (fast)
+python build_races_json.py        # CSV → design/public/data/races.json (153 merged races; the design app's data)
+python normalize_races.py ../data/races_sample.csv            # legacy web/ contract output
 KAKAO_REST_KEY=... python normalize_races.py ../data/races_sample.csv --geocode   # + coordinates
 python geocode.py "수원화성"       # ad-hoc geocode test
 ```
@@ -39,7 +51,9 @@ Geocoding needs the Kakao **REST** key (`KAKAO_REST_KEY`), which is different fr
 
 ## Architecture — the data contract is the center of gravity
 
-The single source of truth for the whole project is the `Marathon` / `Poi` TypeScript types in `web/lib/types.ts`. `web/docs/DATA_SPEC.md` documents them prose-style; **if the two disagree, the types win** — change types first, then update the doc. Both the Python pipeline and the frontend converge on one artifact: `web/public/data/marathons.json` (a `Marathon[]`).
+The single source of truth is **root `SPEC.md` §4**: the camelCase `Race` contract implemented by `design/src/lib/runninggu/normalize.js`, plus the shared `Poi` shape (`{name, lat, lng, desc, addr, url}`). The pipeline and frontend converge on `design/public/data/races.json` + `design/public/data/pois/{raceId}.json`. (The older `web/lib/types.ts` / `web/docs/DATA_SPEC.md` contract only applies inside `web/`.)
+
+External-API ground truth (verified by live calls 2026-07-02, see SPEC.md §5): KTO **KorService2** (KorService1 is dead — HTTP 500), Durunubi (no coord search; parse `gpxpath` GPX), Wellness (works — but **only with the data.go.kr pair key**; the legacy hex key gets 403), Kakao Local/Mobility/Maps SDK all work with the keys in the local `.env` files. The KTO pair key has two forms: decoded (`KTO_SERVICE_KEY`, for libraries that URL-encode) and encoded (`KTO_SERVICE_KEY_ENC`, for raw URL concatenation). Festival search: use `lDongRegnCd` (new code system) — the legacy `areaCode` param silently returns 0 rows.
 
 Target data flow (partially built):
 ```
