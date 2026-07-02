@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useApp } from '../store/appState.jsx'
 import Icon from '../components/Icon.jsx'
 import { AppBar } from '../components/chrome.jsx'
-import { diffDays, shortKo, todayStr, searchFestivalsNear } from '../lib/runninggu/index.js'
+import { diffDays, shortKo, todayStr, regStatusOf, searchFestivalsNear } from '../lib/runninggu/index.js'
 
 export default function RaceScreen() {
   const { state, back, go } = useApp()
@@ -23,6 +23,7 @@ export default function RaceScreen() {
   if (!r) return null
   const d = diffDays(todayStr(), r.date)
   const dday = d > 0 ? `D-${d}` : d === 0 ? 'D-DAY' : `D+${-d}`
+  const status = regStatusOf(r)
 
   return (
     <>
@@ -45,8 +46,8 @@ export default function RaceScreen() {
               <div style={{ fontSize: 12, color: '#9DA0A8', marginTop: 2 }}>출발 {r.startTime} · {r.venue}</div>
             </div>
           </div>
-          <span style={{ display: 'inline-block', marginTop: 16, padding: '6px 12px', borderRadius: 9, background: r.regStatus === '접수중' ? 'var(--c-lime)' : '#3A3B40', color: r.regStatus === '접수중' ? 'var(--c-ink)' : '#B7B9BE', fontSize: 12, fontWeight: 800 }}>
-            {r.regStatus}{r.regEnd ? ` · ~${r.regEnd.slice(5).replace('-', '.')}` : ''}
+          <span style={{ display: 'inline-block', marginTop: 16, padding: '6px 12px', borderRadius: 9, background: status === '접수중' ? 'var(--c-lime)' : '#3A3B40', color: status === '접수중' ? 'var(--c-ink)' : '#B7B9BE', fontSize: 12, fontWeight: 800 }}>
+            {status}{r.regEnd ? ` · ~${r.regEnd.slice(5).replace('-', '.')}` : ''}
           </span>
         </div>
 

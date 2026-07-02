@@ -1,4 +1,16 @@
 import { eventsFromRace } from './events.js'
+import { todayStr } from './dates.js'
+
+// 접수 상태를 '오늘' 기준으로 재계산 — 크롤링 시점 스냅샷(reg_status)이 stale 하므로.
+//  reg_end 지남 → 마감 / reg_start 이전 → 접수전 / 그 사이 → 접수중.
+export function regStatusOf(race, today = todayStr()) {
+  if (!race) return '미정'
+  const { regStart, regEnd } = race
+  if (regEnd && today > regEnd) return '마감'
+  if (regStart && today < regStart) return '접수전'
+  if (regStart || regEnd) return '접수중'
+  return race.regStatus || '미정'
+}
 
 // 원천 데이터 → 앱 내부 정규화 Race(camelCase).
 // 크롤러 원천(snake_case: race_id·event_date·latitude…)과 기존 샘플(camelCase),
