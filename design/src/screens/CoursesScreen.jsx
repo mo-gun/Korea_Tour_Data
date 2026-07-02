@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Icon from '../components/Icon.jsx'
 import MapView from '../map/MapView.jsx'
-import { browseCourses, buildRouteNear, chainSpots, courseRegions, geocodePlace, searchWalkSpots } from '../lib/runninggu/index.js'
+import { browseCourses, buildRouteNear, courseRegions, geocodePlace, searchWalkSpots } from '../lib/runninggu/index.js'
 
 // 러닝코스(M4) — 두루누비 걷기 코스(코리아둘레길).
 //  · 내 주변: 사용자 위치에서 가까운 코스를 원하는 길이로 잘라 추천 + 지도 표시
@@ -66,25 +66,19 @@ function NearMode() {
   )
   const selected = routes.find((r) => r.id === selId) || routes[0] || null
 
-  // 두루누비 코스가 없으면(수도권 등) 근처 걷기 스팟을 이어 산책 코스를 생성.
-  const cityRoute = useMemo(
-    () => (loc && routes.length === 0 ? chainSpots({ lat: loc.lat, lng: loc.lng, spots, targetKm }) : null),
-    [loc, routes.length, spots, targetKm],
+  // 지도: 두루누비 왕복 경로만 선으로. 도시(두루누비 없음)는 걷기 스팟을 핀으로만 표시.
+  const mapPolyline = selected ? selected.routePoints : null
+  // 걷기 스팟 핀(거리순) — 아래 리스트 번호와 일치. 선으로 잇지 않음.
+  const spotPins = useMemo(
+    () => spots.map((s, i) => ({ id: `spot-${i}`, n: i + 1, lat: s.lat, lng: s.lng, title: s.name })),
+    [spots],
   )
-
-  // 지도 경로: 두루누비 왕복 or 도시 스팟 코스.
-  const mapPolyline = selected ? selected.routePoints : cityRoute ? cityRoute.points : null
-  // 지도 핀: 도시 코스면 경유 순서대로, 아니면 걷기 스팟 거리순.
-  const mapPins = useMemo(() => {
-    const src = cityRoute ? cityRoute.stops : spots
-    return src.map((s, i) => ({ id: `spot-${i}`, n: i + 1, lat: s.lat, lng: s.lng, title: s.name }))
-  }, [cityRoute, spots])
 
   // 도시 보강: 위치가 바뀌면 카카오 로컬로 근처 걷기 좋은 곳(점) 조회.
   useEffect(() => {
     if (!loc) { setSpots([]); return }
     let on = true
-    searchWalkSpots({ lat: loc.lat, lng: loc.lng, radiusM: 5000, limit: 15 })
+    searchWalkSpots({ lat: loc.lat, lng: loc.lng, radiusM: 3000, limit: 12 })
       .then((s) => { if (on) setSpots(s) })
       .catch(() => { if (on) setSpots([]) })
     return () => { on = false }
@@ -130,8 +124,8 @@ function NearMode() {
       </div>
 
       <div className="scr scr-body" style={{ padding: '4px 22px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {/* 지도 우선 — 두루누비 왕복(선) 또는 도시 스팟 코스(선) + 핀 */}
-        <MapView polyline={mapPolyline} pins={mapPins} connectPins={false} showLegend={false} height={230} />
+        {/* 지도 우선 — 두루누비 왕복(선) + 걷기 스팟(핀) */}
+        <MapView polyline={mapPolyline} pins={spotPins} connectPins={false} showLegend={false} height={230} />
 
         {!loc && (
           <div className="empty">
@@ -165,27 +159,16 @@ function NearMode() {
         {loc && routes.length > 1 && (
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-ink-4)' }}>다른 코스 {routes.length - 1}개</div>
         )}
-        {/* 도시 스팟 코스 요약 (두루누비 없을 때) */}
-        {cityRoute && (
-          <div className="race-card featured" style={{ alignItems: 'flex-start' }}>
-            <span style={{ flex: 'none', width: 50, height: 50, borderRadius: 14, background: 'var(--cat-nature-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--cat-nature-fg)' }}>
-              <Icon name="courses" size={24} stroke={2} />
-            </span>
-            <div className="body">
-              <div className="name" style={{ fontSize: 16 }}>{loc.label} 근처 산책 코스</div>
-              <div className="place">근처 공원·하천 {cityRoute.stops.length}곳을 이어서</div>
-              <div className="evt-tags">
-                <span className="evt-tag hi">약 {cityRoute.distKm}km</span>
-                <span className="evt-tag">약 {cityRoute.minutes}분</span>
-                <span className="evt-tag">{cityRoute.stops.length}곳</span>
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--c-ink-5)', marginTop: 4 }}>두루누비 코스가 없는 지역이라 카카오 스팟을 직선으로 이은 대략 코스예요.</div>
-            </div>
+        {/* 두루누비 코스가 없는 지역(수도권 등): 걷기 좋은 곳 안내 */}
+        {loc && routes.length === 0 && spots.length > 0 && (
+          <div className="infobox">
+            <Icon name="info" size={20} stroke={2} style={{ color: 'var(--c-primary)' }} />
+            <div>이 근처엔 두루누비 코스가 없어요. 대신 걸을 만한 공원·하천을 모았어요.</div>
           </div>
         )}
-        {loc && routes.length === 0 && !cityRoute && spots.length === 0 && (
+        {loc && routes.length === 0 && spots.length === 0 && (
           <div className="empty">
-            <div className="e-title">이 근처엔 걸을 코스가 없어요.</div>
+            <div className="e-title">이 근처엔 걸을 곳을 못 찾았어요.</div>
             <div>출발지를 바꾸거나 프리셋(부산·여수·강릉 등)을 눌러보세요.</div>
           </div>
         )}
@@ -206,14 +189,14 @@ function NearMode() {
           </button>
         ))}
 
-        {/* 걷기 스팟(카카오) — 도시 코스면 경유지 순서, 아니면 걷기 좋은 곳 거리순. 지도 핀 번호와 일치. */}
-        {loc && (cityRoute ? cityRoute.stops : spots).length > 0 && (
+        {/* 걷기 좋은 곳(카카오) — 거리순. 지도 핀 번호와 일치. */}
+        {loc && spots.length > 0 && (
           <>
             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-ink-4)', marginTop: 4 }}>
-              {cityRoute ? '산책 코스 경유지 · 순서대로' : '이 근처 걷기 좋은 곳'}
+              이 근처 걷기 좋은 곳
               <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--c-ink-6)' }}> · 카카오</span>
             </div>
-            {(cityRoute ? cityRoute.stops : spots).map((s, i) => (
+            {spots.map((s, i) => (
               <a key={s.name + s.addr} href={s.url} target="_blank" rel="noreferrer" className="race-card" style={{ textDecoration: 'none' }}>
                 <span style={{ flex: 'none', width: 50, height: 50, borderRadius: 14, background: 'var(--c-primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 16 }}>
                   {i + 1}
