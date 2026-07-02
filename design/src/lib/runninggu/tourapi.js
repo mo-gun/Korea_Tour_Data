@@ -8,6 +8,9 @@ const KAKAO = '/api/kakao'
 
 // 근처 '걷기 좋은 곳' — 카카오 로컬 키워드 검색(공원·산책로·하천). 두루누비가 빈 도시 보강용.
 //  점(장소) 단위 결과. 거리(m) 오름차순, 이름 중복 제거.
+// 걷기 장소로 적합한 카테고리만(공원·관광명소·하천 등). 하위 시설(화장실·주차장·매점 등)은 제외.
+const WALK_CAT = /공원|관광|명소|산책|둘레|하천|유원지|수목원|숲|생태|휴양|호수|해수욕|해변|등산로|트레킹|자연/
+const NON_WALK = /화장실|주차장|주차|테니스|풋살|축구장|야구장|농구장|체육관|관리사무소|매점|안내소|정류장/
 export async function searchWalkSpots({ lat, lng, radiusM = 3000, limit = 10 }) {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return []
   const queries = ['공원', '산책로', '둘레길', '하천']
@@ -19,12 +22,15 @@ export async function searchWalkSpots({ lat, lng, radiusM = 3000, limit = 10 }) 
       if (!res.ok) continue
       const json = await res.json()
       for (const d of json.documents || []) {
+        const cat = d.category_name || ''
+        // 걷기 카테고리가 아니거나(주차장·카페 등) 하위 시설(화장실 등)이면 제외.
+        if (!WALK_CAT.test(cat) || NON_WALK.test(d.place_name)) continue
         const key = d.place_name + d.address_name
         if (seen.has(key)) continue
         seen.add(key)
         out.push({
           name: d.place_name,
-          category: (d.category_name || '').split('>').pop()?.trim() || q,
+          category: cat.split('>').pop()?.trim() || q,
           addr: d.road_address_name || d.address_name || '',
           lat: Number(d.y), lng: Number(d.x),
           distM: Number(d.distance) || 0,
