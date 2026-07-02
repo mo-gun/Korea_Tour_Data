@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../store/appState.jsx'
 import Icon from '../components/Icon.jsx'
-import { dow } from '../lib/runninggu/index.js'
+import { dow, fmtDate } from '../lib/runninggu/index.js'
 
 const MON_EN = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+const TODAY = fmtDate(new Date())
 
 export default function HomeScreen() {
   const { races, dispatch } = useApp()
@@ -22,7 +23,12 @@ export default function HomeScreen() {
       .filter((r) => (month ? Number(r.date.slice(5, 7)) === month : true))
       .filter((r) => (openOnly ? r.regStatus === '접수중' : true))
       .filter((r) => (q ? (r.name + r.venue + r.region).includes(q) : true))
-      .sort((a, b) => a.date.localeCompare(b.date))
+      .sort((a, b) => {
+        const pastA = a.date < TODAY
+        const pastB = b.date < TODAY
+        if (pastA !== pastB) return pastA ? 1 : -1 // 지난 대회는 목록 뒤로
+        return a.date.localeCompare(b.date)
+      })
   }, [races, region, month, openOnly, q])
 
   const clearAll = () => { setRegion(null); setMonth(null); setOpenOnly(false); setQ('') }

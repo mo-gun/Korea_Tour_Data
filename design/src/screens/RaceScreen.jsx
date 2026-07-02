@@ -1,9 +1,9 @@
 import { useApp } from '../store/appState.jsx'
 import Icon from '../components/Icon.jsx'
 import { AppBar } from '../components/chrome.jsx'
-import { diffDays, shortKo } from '../lib/runninggu/index.js'
+import { diffDays, fmtDate, shortKo } from '../lib/runninggu/index.js'
 
-const TODAY = '2026-06-18'
+const TODAY = fmtDate(new Date())
 
 export default function RaceScreen() {
   const { state, back, go } = useApp()

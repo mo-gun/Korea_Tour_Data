@@ -1,11 +1,14 @@
-import React, { createContext, useContext, useReducer, useRef, useCallback } from 'react'
+import React, { createContext, useContext, useReducer, useRef, useCallback, useEffect } from 'react'
 import { RAW_RACES, normalizeRaces, buildItinerary } from '../lib/runninggu/index.js'
 
 // 화면 상태머신: home→race→plan→taste→stay→result. 뒤로가기 스택 유지.
-const RACES = normalizeRaces(RAW_RACES)
+// 대회 데이터는 파이프라인 산출물(public/data/races.json)을 로드해 교체하고,
+// 로드 전·실패 시에는 내장 샘플로 동작한다(NFR-1: 키·네트워크 없이 전체 시연 가능).
+const FALLBACK_RACES = normalizeRaces(RAW_RACES)
 
 const initial = {
   screen: 'home',
+  races: FALLBACK_RACES,
   stack: [],            // 뒤로가기 스택
   tab: 'calendar',      // 하단 탭(calendar|route|courses|trips)
   // 전역 동선 state
@@ -73,6 +76,8 @@ function reducer(state, a) {
     }
     case 'TOAST':
       return { ...state, toast: a.toast }
+    case 'RACES':
+      return { ...state, races: a.races }
     default:
       return state
   }
@@ -84,6 +89,17 @@ const Ctx = AppContext
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initial)
   const toastTimer = useRef(null)
+
+  // 실데이터 로드(G-01). 실패해도 FALLBACK_RACES로 계속 동작.
+  useEffect(() => {
+    fetch(`${import.meta.env.BASE_URL}data/races.json`)
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then((list) => {
+        const races = normalizeRaces(list)
+        if (races.length) dispatch({ type: 'RACES', races })
+      })
+      .catch(() => {})
+  }, [])
 
   const toast = useCallback((msg) => {
     dispatch({ type: 'TOAST', toast: msg })
@@ -109,7 +125,7 @@ export function AppProvider({ children }) {
 
   const value = {
     state,
-    races: RACES,
+    races: state.races,
     dispatch,
     toast,
     runEngine,
