@@ -10,5 +10,8 @@ tmp/
 *.log
 *.tmp
 
+# local secrets (API keys)
+.env
+
 # macOS
 .DS_Store
