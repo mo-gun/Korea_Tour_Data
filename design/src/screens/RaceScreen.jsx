@@ -63,28 +63,31 @@ export default function RaceScreen() {
           </div>
         </div>
 
-        {/* 인근 축제 — TourAPI searchFestival2 (대회일 전후 · 대회장 반경 내). 없으면 섹션 숨김. */}
-        {(festLoading || festivals.length > 0) && (
-          <div style={{ padding: '14px 0 24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 22px 12px' }}>
-              <div style={{ fontSize: 16, fontWeight: 800 }}>대회 기간 인근 축제</div>
-              <span style={{ fontSize: 12, color: 'var(--c-ink-6)' }}>한국관광공사</span>
-            </div>
-            {festLoading ? (
-              <div style={{ padding: '0 22px', fontSize: 13, color: 'var(--c-ink-5)' }}>축제를 찾는 중…</div>
-            ) : (
-              <div className="hscroll scr">
-                {festivals.map((f) => (
-                  <div className="hcard" key={f.contentId}>
-                    <div className="img" style={f.image ? { backgroundImage: `url(${f.image})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined} />
-                    <div className="ct">{f.title}</div>
-                    <div className="cs">{f.dateLabel} · 대회장 {f.distKm.toFixed(1)}km</div>
-                  </div>
-                ))}
-              </div>
-            )}
+        {/* 인근 축제 — TourAPI searchFestival2 (대회일 전후 · 대회장 반경 내). 항상 섹션 노출, 없으면 안내. */}
+        <div style={{ padding: '14px 0 24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 22px 12px' }}>
+            <div style={{ fontSize: 16, fontWeight: 800 }}>대회 기간 인근 축제</div>
+            <span style={{ fontSize: 12, color: 'var(--c-ink-6)' }}>한국관광공사</span>
           </div>
-        )}
+          {festLoading ? (
+            <div style={{ padding: '0 22px', fontSize: 13, color: 'var(--c-ink-5)' }}>축제를 찾는 중…</div>
+          ) : festivals.length > 0 ? (
+            <div className="hscroll scr">
+              {festivals.map((f) => (
+                <div className="hcard" key={f.contentId}>
+                  <div className="img" style={f.image ? { backgroundImage: `url(${f.image})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined} />
+                  <div className="ct">{f.title}</div>
+                  <div className="cs">{f.dateLabel} · 대회장 {f.distKm.toFixed(1)}km</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ margin: '0 22px', padding: '18px 16px', borderRadius: 14, background: 'var(--c-fill)', textAlign: 'center' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-ink-4)' }}>대회 기간에 열리는 인근 축제가 없어요.</div>
+              <div style={{ fontSize: 12, color: 'var(--c-ink-6)', marginTop: 4 }}>대회 전후 여행 동선은 그대로 짜드릴 수 있어요.</div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="cta-bar">

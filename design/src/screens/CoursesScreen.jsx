@@ -83,16 +83,16 @@ function NearMode() {
 
   return (
     <>
-      {/* 출발지 검색 */}
+      {/* 출발지 검색 — 인풋은 가로로 꽉 차고, 검색 버튼은 오른쪽 끝. */}
       <div style={{ padding: '0 22px 8px', flex: 'none' }}>
-        <label className="sheet-search" style={{ margin: 0 }}>
-          <Icon name="search" size={18} stroke={2} style={{ color: 'var(--c-ink-5)' }} />
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 12px 10px 14px', borderRadius: 'var(--r-chip)', background: 'var(--c-fill)' }}>
+          <Icon name="search" size={18} stroke={2} style={{ color: 'var(--c-ink-5)', flex: 'none' }} />
           <input
             value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && runSearch()}
             placeholder="출발지 검색 (예: 경주역, 해운대)"
-            style={{ border: 'none', outline: 'none', background: 'transparent', flex: 1, fontSize: 14, color: 'var(--c-ink)', fontFamily: 'inherit' }}
+            style={{ border: 'none', outline: 'none', background: 'transparent', flex: 1, minWidth: 0, fontSize: 14, color: 'var(--c-ink)', fontFamily: 'inherit' }}
           />
-          <button className="chip outline-ink" style={{ padding: '4px 10px' }} onClick={runSearch}>검색</button>
+          <button className="chip outline-ink" style={{ flex: 'none', marginLeft: 'auto', padding: '6px 14px' }} onClick={runSearch}>검색</button>
         </label>
       </div>
       {/* 출발지 칩: 내 위치 + 프리셋 */}
