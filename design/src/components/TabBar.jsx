@@ -17,15 +17,14 @@ export default function TabBar() {
     if (t.key === 'calendar') dispatch({ type: 'RESET_TO', screen: 'home' })
     else if (t.key === 'trips') dispatch({ type: 'RESET_TO', screen: 'trips' })
     else if (t.key === 'route') {
-      // 동선: 만든 결과가 있으면 결과로, 없으면 안내
-      if (state.days.length) dispatch({ type: 'RESET_TO', screen: 'result' })
-      else dispatch({ type: 'RESET_TO', screen: state.race ? 'plan' : 'home' })
+      // 동선: 만든 결과가 있으면 결과로, 없으면 빈 안내 화면(항상 눈에 보이게 반응)
+      dispatch({ type: 'RESET_TO', screen: state.days.length ? 'result' : 'route' })
     } else if (t.key === 'courses') dispatch({ type: 'RESET_TO', screen: 'courses' })
   }
 
   const activeKey =
     state.screen === 'trips' ? 'trips'
-    : state.screen === 'result' ? 'route'
+    : state.screen === 'result' || state.screen === 'route' ? 'route'
     : state.screen === 'courses' ? 'courses'
     : state.screen === 'home' ? 'calendar'
     : state.tab

@@ -14,7 +14,7 @@
       var key = (window.__KAKAO_KEY__ = '%VITE_KAKAO_MAP_KEY%');
       if (key && key.indexOf('VITE_') === -1) {
         var s = document.createElement('script');
-        s.src = '//dapi.kakao.com/v2/maps/sdk.js?appkey=' + key + '&libraries=services&autoload=false';
+        s.src = 'https://dapi.kakao.com/v2/maps/sdk.js?appkey=' + key + '&libraries=services&autoload=false';
         s.async = true;
         document.head.appendChild(s);
       }

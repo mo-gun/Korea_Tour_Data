@@ -32,7 +32,7 @@ export default function StayScreen() {
       <AppBar onBack={back} title="동선 만들기" />
       <div className="scr scr-body" style={{ padding: '14px 24px 8px' }}>
         <div className="page-title">어디서<br />묵을까요?</div>
-        <div className="page-sub">아침·저녁 산책 코스의 기준점이 돼요. {state.building ? '' : '건너뛰면 대회장 주변으로 잡아드려요.'}</div>
+        <div className="page-sub">{state.building ? '' : '건너뛰면 대회장 주변으로 잡아드려요.'}</div>
 
         <label className="sheet-search" style={{ margin: '20px 0 0' }}>
           <Icon name="search" size={18} stroke={2} style={{ color: 'var(--c-ink-5)' }} />

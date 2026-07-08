@@ -1,16 +1,29 @@
+import { useEffect, useState } from 'react'
 import { useApp } from '../store/appState.jsx'
 import Icon from '../components/Icon.jsx'
 import { AppBar } from '../components/chrome.jsx'
-import { diffDays, fmtDate, shortKo } from '../lib/runninggu/index.js'
-
-const TODAY = fmtDate(new Date())
+import { diffDays, shortKo, todayStr, regStatusOf, searchFestivalsNear } from '../lib/runninggu/index.js'
 
 export default function RaceScreen() {
   const { state, back, go } = useApp()
   const r = state.race
+  const [festivals, setFestivals] = useState([])
+  const [festLoading, setFestLoading] = useState(true)
+
+  useEffect(() => {
+    if (!r) return
+    let on = true
+    setFestLoading(true)
+    searchFestivalsNear({ lat: r.lat, lng: r.lng, date: r.date })
+      .then((list) => { if (on) { setFestivals(list); setFestLoading(false) } })
+      .catch(() => { if (on) { setFestivals([]); setFestLoading(false) } })
+    return () => { on = false }
+  }, [r?.id])
+
   if (!r) return null
-  const d = diffDays(TODAY, r.date)
+  const d = diffDays(todayStr(), r.date)
   const dday = d > 0 ? `D-${d}` : d === 0 ? 'D-DAY' : `D+${-d}`
+  const status = regStatusOf(r)
 
   return (
     <>
@@ -33,8 +46,8 @@ export default function RaceScreen() {
               <div style={{ fontSize: 12, color: '#9DA0A8', marginTop: 2 }}>출발 {r.startTime} · {r.venue}</div>
             </div>
           </div>
-          <span style={{ display: 'inline-block', marginTop: 16, padding: '6px 12px', borderRadius: 9, background: r.regStatus === '접수중' ? 'var(--c-lime)' : '#3A3B40', color: r.regStatus === '접수중' ? 'var(--c-ink)' : '#B7B9BE', fontSize: 12, fontWeight: 800 }}>
-            {r.regStatus}{r.regEnd ? ` · ~${r.regEnd.slice(5).replace('-', '.')}` : ''}
+          <span style={{ display: 'inline-block', marginTop: 16, padding: '6px 12px', borderRadius: 9, background: status === '접수중' ? 'var(--c-lime)' : '#3A3B40', color: status === '접수중' ? 'var(--c-ink)' : '#B7B9BE', fontSize: 12, fontWeight: 800 }}>
+            {status}{r.regEnd ? ` · ~${r.regEnd.slice(5).replace('-', '.')}` : ''}
           </span>
         </div>
 
@@ -51,21 +64,30 @@ export default function RaceScreen() {
           </div>
         </div>
 
-        {/* 인근 축제 미리보기 (디자인 유지 · MVP 정적) */}
+        {/* 인근 축제 — TourAPI searchFestival2 (대회일 전후 · 대회장 반경 내). 항상 섹션 노출, 없으면 안내. */}
         <div style={{ padding: '14px 0 24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 22px 12px' }}>
             <div style={{ fontSize: 16, fontWeight: 800 }}>대회 기간 인근 축제</div>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-primary)' }}>더보기</span>
+            <span style={{ fontSize: 12, color: 'var(--c-ink-6)' }}>한국관광공사</span>
           </div>
-          <div className="hscroll scr">
-            {[['신라문화제', '10.18 ~ 10.22 · 대회장 2.1km'], ['보문 불빛축제', '상시 · 대회장 3.4km']].map(([t, s]) => (
-              <div className="hcard" key={t}>
-                <div className="img" />
-                <div className="ct">{t}</div>
-                <div className="cs">{s}</div>
-              </div>
-            ))}
-          </div>
+          {festLoading ? (
+            <div style={{ padding: '0 22px', fontSize: 13, color: 'var(--c-ink-5)' }}>축제를 찾는 중…</div>
+          ) : festivals.length > 0 ? (
+            <div className="hscroll scr">
+              {festivals.map((f) => (
+                <div className="hcard" key={f.contentId}>
+                  <div className="img" style={f.image ? { backgroundImage: `url(${f.image})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined} />
+                  <div className="ct">{f.title}</div>
+                  <div className="cs">{f.dateLabel} · 대회장 {f.distKm.toFixed(1)}km</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ margin: '0 22px', padding: '18px 16px', borderRadius: 14, background: 'var(--c-fill)', textAlign: 'center' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-ink-4)' }}>대회 기간에 열리는 인근 축제가 없어요.</div>
+              <div style={{ fontSize: 12, color: 'var(--c-ink-6)', marginTop: 4 }}>대회 전후 여행 동선은 그대로 짜드릴 수 있어요.</div>
+            </div>
+          )}
         </div>
       </div>
 
