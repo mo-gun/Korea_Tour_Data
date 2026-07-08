@@ -2,6 +2,7 @@
 .claude/
 .github/
 _bmad/
+_bmad-output/
 tmp/
 
 # local/runtime noise
